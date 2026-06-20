@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-06-20
+
+### Changed
+
+- OSV vulnerability queries run concurrently (buffer_unordered 20) for faster manifest scans
+
 ## [0.5.1] - 2026-06-20
 
 ### Added

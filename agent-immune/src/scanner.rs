@@ -104,46 +104,58 @@ fn parse_package_json(path: &Path) -> Result<Vec<Package>> {
 }
 
 pub async fn query_osv(packages: &[Package]) -> Result<ScanResult> {
+    use futures::stream::{self, StreamExt};
     let client = reqwest::Client::new();
-    let mut vulnerabilities = Vec::new();
 
-    for pkg in packages {
-        let query = serde_json::json!({
-            "package": {
-                "name": pkg.name,
-                "ecosystem": pkg.ecosystem,
-            },
-            "version": pkg.version,
-        });
+    let vulnerabilities: Vec<Vulnerability> = stream::iter(packages)
+        .map(|pkg| {
+            let client = client.clone();
+            async move {
+                let query = serde_json::json!({
+                    "package": {
+                        "name": pkg.name,
+                        "ecosystem": pkg.ecosystem,
+                    },
+                    "version": pkg.version,
+                });
 
-        match client
-            .post("https://api.osv.dev/v1/query")
-            .json(&query)
-            .send()
-            .await
-        {
-            Ok(resp) => {
-                if let Ok(osv) = resp.json::<OsvResponse>().await {
-                    for vuln in osv.vulns {
-                        vulnerabilities.push(Vulnerability {
-                            package: pkg.name.clone(),
-                            version: pkg.version.clone(),
-                            ecosystem: pkg.ecosystem.clone(),
-                            osv_id: vuln.id,
-                            summary: vuln.summary.unwrap_or_default(),
-                            severity: vuln
-                                .severity
-                                .and_then(|s| s.first().map(|se| se.score.clone()))
-                                .unwrap_or_default(),
-                        });
+                let mut vulns = Vec::new();
+                match client
+                    .post("https://api.osv.dev/v1/query")
+                    .json(&query)
+                    .send()
+                    .await
+                {
+                    Ok(resp) => {
+                        if let Ok(osv) = resp.json::<OsvResponse>().await {
+                            for vuln in osv.vulns {
+                                vulns.push(Vulnerability {
+                                    package: pkg.name.clone(),
+                                    version: pkg.version.clone(),
+                                    ecosystem: pkg.ecosystem.clone(),
+                                    osv_id: vuln.id,
+                                    summary: vuln.summary.unwrap_or_default(),
+                                    severity: vuln
+                                        .severity
+                                        .and_then(|s| s.first().map(|se| se.score.clone()))
+                                        .unwrap_or_default(),
+                                });
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("OSV query failed for {}: {}", pkg.name, e);
                     }
                 }
+                vulns
             }
-            Err(e) => {
-                tracing::warn!("OSV query failed for {}: {}", pkg.name, e);
-            }
-        }
-    }
+        })
+        .buffer_unordered(20)
+        .collect::<Vec<Vec<Vulnerability>>>()
+        .await
+        .into_iter()
+        .flatten()
+        .collect();
 
     Ok(ScanResult {
         packages: packages.to_vec(),
