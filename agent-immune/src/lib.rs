@@ -1,5 +1,6 @@
 pub mod config;
 pub mod jetstream_consumer;
+pub mod leak_check;
 pub mod sandbox;
 pub mod scanner;
 pub mod serve;
@@ -13,7 +14,11 @@ pub async fn run_scan(path: &Path) -> Result<()> {
         println!("{{ \"packages\": [], \"vulnerabilities\": [] }}");
         return Ok(());
     }
-    println!("Scanning {} dependencies from {}", pkgs.len(), path.display());
+    println!(
+        "Scanning {} dependencies from {}",
+        pkgs.len(),
+        path.display()
+    );
     let results = scanner::query_osv(&pkgs).await?;
     println!("{}", serde_json::to_string_pretty(&results)?);
     Ok(())

@@ -8,9 +8,7 @@ use agent_body_core::nats::subjects;
 use agent_body_core::{ExecuteResult, SandboxExecute, STREAM_NAME, STREAM_SUBJECT_WILDCARD};
 
 async fn connect_js(url: &str) -> Result<jetstream::Context> {
-    let client = async_nats::connect(url)
-        .await
-        .context("connect to NATS")?;
+    let client = async_nats::connect(url).await.context("connect to NATS")?;
     let js = jetstream::new(client);
     js.get_or_create_stream(jetstream::stream::Config {
         name: STREAM_NAME.to_string(),
@@ -41,11 +39,7 @@ async fn publish_result(js: &jetstream::Context, result: &ExecuteResult) -> Resu
     let mut headers = async_nats::HeaderMap::new();
     headers.insert("Nats-Msg-Id", result.msg_id.as_str());
     let bytes = serde_json::to_vec(result)?;
-    js.publish_with_headers(
-        subjects::EXECUTE_RESULT.to_string(),
-        headers,
-        bytes.into(),
-    )
+    js.publish_with_headers(subjects::EXECUTE_RESULT.to_string(), headers, bytes.into())
         .await?
         .await
         .context("publish execute result")?;
@@ -88,9 +82,7 @@ pub async fn run_sandbox_consumer(url: &str, network_blackhole: bool) -> Result<
             }
         };
 
-        let options = crate::sandbox::SandboxOptions {
-            network_blackhole,
-        };
+        let options = crate::sandbox::SandboxOptions { network_blackhole };
         let result = crate::sandbox::run_isolated(&job, &options).await;
         if let Err(e) = publish_result(&js, &result).await {
             warn!(error = %e, "failed to publish execute result");

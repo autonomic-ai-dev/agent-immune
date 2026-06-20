@@ -24,6 +24,14 @@ enum Commands {
         #[arg(long)]
         allow_network: bool,
     },
+    /// Verify a script has no runaway memory growth (dataset gate)
+    VerifyMemory {
+        /// Script path or command file
+        script: std::path::PathBuf,
+        /// Max RSS growth in KiB before failing (default 524288 = 512 MiB)
+        #[arg(long, default_value_t = 524288)]
+        threshold_kb: u64,
+    },
     /// Show configuration and status
     Status,
 }
@@ -41,17 +49,34 @@ async fn main() -> anyhow::Result<()> {
             let config = agent_immune::config::Config::load()?;
             agent_immune::serve::start(config).await?;
         }
-        Commands::Sandbox { script, allow_network } => {
+        Commands::Sandbox {
+            script,
+            allow_network,
+        } => {
             let options = agent_immune::sandbox::SandboxOptions {
                 network_blackhole: !allow_network,
             };
             let result = agent_immune::sandbox::run_script(&script, &options).await;
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
+        Commands::VerifyMemory {
+            script,
+            threshold_kb,
+        } => {
+            let report =
+                agent_immune::leak_check::gate_trajectory_script(&script, threshold_kb).await?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if !report.passed {
+                std::process::exit(1);
+            }
+        }
         Commands::Status => {
             let config = agent_immune::config::Config::load()?;
             println!("agent-immune status");
-            println!("  config: {}", agent_immune::config::Config::config_path().display());
+            println!(
+                "  config: {}",
+                agent_immune::config::Config::config_path().display()
+            );
             println!("  port: {}", config.server.port);
             println!("  nats_url: {}", config.nats.url);
             println!("  jetstream_consumer: {}", config.nats.jetstream_consumer);

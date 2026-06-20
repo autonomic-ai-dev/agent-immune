@@ -46,10 +46,7 @@ struct OsvSeverity {
 }
 
 pub fn parse_manifest(path: &Path) -> Result<Vec<Package>> {
-    let filename = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
     match filename {
         "Cargo.toml" => parse_cargo_toml(path),
         "package.json" => parse_package_json(path),
