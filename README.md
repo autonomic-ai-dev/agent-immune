@@ -4,6 +4,14 @@
 
 `agent-immune` parses dependency manifests, queries OSV.dev, and runs untrusted code in Firecracker or seccomp-BPF sandboxes.
 
+```mermaid
+flowchart LR
+    Code[Input Code] --> Scan[OSV.dev Scan]
+    Code --> Sandbox[Sandbox Execution<br>Firecracker / seccomp-BPF]
+    Scan --> Output[Safe / Vulnerable]
+    Sandbox --> OutputResult[Execution Result]
+```
+
 Standalone: `agent-immune scan .` · Integrated: HTTP daemon on **3106**, spine events on scan/sandbox.
 
 ---
