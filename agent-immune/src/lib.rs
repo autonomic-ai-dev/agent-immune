@@ -1,0 +1,16 @@
+pub mod config;
+pub mod scanner;
+use anyhow::Result;
+use std::path::Path;
+
+pub async fn run_scan(path: &Path) -> Result<()> {
+    let pkgs = scanner::parse_manifest(path)?;
+    if pkgs.is_empty() {
+        println!("{{ \"packages\": [], \"vulnerabilities\": [] }}");
+        return Ok(());
+    }
+    println!("Scanning {} dependencies from {}", pkgs.len(), path.display());
+    let results = scanner::query_osv(&pkgs).await?;
+    println!("{}", serde_json::to_string_pretty(&results)?);
+    Ok(())
+}
