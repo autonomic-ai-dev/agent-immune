@@ -1,20 +1,29 @@
 # agent-immune
 
-**Dependency fuzzing and vulnerability scanning daemon — parse manifests, query OSV.dev, report findings.**
+**Security organ — dependency scanning, sandboxed execution, and seccomp isolation.**
 
-agent-immune scans project dependency manifests (Cargo.toml, package.json) and queries the Open Source Vulnerabilities (OSV.dev) database to find known vulnerabilities in your dependencies.
+`agent-immune` parses dependency manifests, queries OSV.dev, and runs untrusted code in Firecracker or seccomp-BPF sandboxes.
+
+Standalone: `agent-immune scan .` · Integrated: HTTP daemon on **3106**, spine events on scan/sandbox.
 
 ---
 
-## Why agent-immune?
+## Install
 
-AI agents frequently install dependencies without checking for known vulnerabilities. agent-immune provides a fast, local first-line defense.
+```bash
+curl -fsSL https://raw.githubusercontent.com/autonomic-ai-dev/agent-immune/master/scripts/install.sh | bash
+```
 
-| Problem | agent-immune answer |
-|---------|-------------------|
-| "Did that new dependency have a recent CVE?" | **OSV.dev query** — checks each dependency against the open vulnerability database |
-| "I have 200 crates in my project" | **Manifest parsing** — reads Cargo.toml and package.json automatically |
-| "I want CI to catch this" | **JSON output** — structured results for pipeline integration |
+---
+
+## Quick start
+
+```bash
+agent-immune status
+agent-immune scan ./my-project
+agent-immune sandbox run -- echo hello
+agent-immune serve
+```
 
 ---
 
@@ -22,24 +31,40 @@ AI agents frequently install dependencies without checking for known vulnerabili
 
 | Command | Description |
 |---------|-------------|
-| `agent-immune scan <path>` | Parse manifest and query OSV.dev for vulnerabilities |
-| `agent-immune serve` | Start daemon (future: automated scanning) |
-| `agent-immune status` | Show config path and current settings |
+| `scan <path>` | Parse manifests, query OSV.dev |
+| `sandbox run` | Execute in configured sandbox backend |
+| `serve` | HTTP API daemon |
+| `status` | Config and backend settings |
+
+Sandbox backends: `process` (default), `firecracker`, with optional seccomp-BPF.
+
+Firecracker requires `AUTONOMIC_FC_KERNEL` and `AUTONOMIC_FC_ROOTFS`.
 
 ---
 
-## Quick Install
+## HTTP API
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/autonomic-ai-dev/agent-immune/master/scripts/install.sh | bash
-```
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Daemon health |
+| `POST /scan` | Vulnerability scan |
+| `POST /sandbox/run` | Sandboxed command |
+
+---
+
+## Configuration
+
+Section `[immune]` in `~/.autonomic/config.toml` (default port **3106**).
+
+---
 
 ## Development
 
 ```bash
-cargo build --release -p agent-immune
 cargo test --release -p agent-immune
 ```
+
+---
 
 ## License
 
