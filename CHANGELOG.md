@@ -1,18 +1,29 @@
 # Changelog
 
-## [v] - 2026-06-20
-
-### Added
-- Added Mermaid charts to README
-- Added `--version` flag to CLI parser
-
-
-All notable changes to this project are documented in this file.
+All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.5.1] - 2026-06-20
+
+### Added
+
+- `--version` CLI flag (`6183db9`)
+- Mermaid architecture charts in README (`eeea3a8`)
+
+### Changed
+
+- Professional README with standalone and integrated usage (`4cb18f8`)
+
+### Fixed
+
+- aarch64 seccomp allowlist uses `faccessat` (`393cb62`)
+- Arch-specific seccomp syscall lists for aarch64 CI (`86db422`)
+- seccompiler `BackendError` on Linux (`410697a`)
+- Linux seccomp compile for CI (`54c05ff`)
 
 ## [0.5.0] - 2026-06-20
 
