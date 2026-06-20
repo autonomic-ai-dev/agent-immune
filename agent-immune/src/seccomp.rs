@@ -15,7 +15,7 @@ pub fn apply_to_command(_cmd: &mut std::process::Command) {}
 #[cfg(target_os = "linux")]
 fn install_default_filter() -> Result<(), String> {
     use seccompiler::{apply_filter, BpfProgram, SeccompAction, SeccompFilter, TargetArch};
-    use std::convert::TryInto;
+    use std::convert::TryFrom;
 
     let rules: std::collections::BTreeMap<i64, Vec<seccompiler::SeccompRule>> = ALLOWED_SYSCALLS
         .iter()
@@ -34,9 +34,7 @@ fn install_default_filter() -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
 
-    let bpf_prog: BpfProgram = filter
-        .try_into()
-        .map_err(|e: seccompiler::Error| e.to_string())?;
+    let bpf_prog = BpfProgram::try_from(filter).map_err(|e| e.to_string())?;
     apply_filter(&bpf_prog).map_err(|e| e.to_string())
 }
 
