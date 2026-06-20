@@ -14,8 +14,7 @@ pub async fn start(config: Config) -> anyhow::Result<()> {
         let url = config.nats.url.clone();
         let options = crate::sandbox::SandboxOptions::from(&config.sandbox);
         tokio::spawn(async move {
-            if let Err(e) = crate::jetstream_consumer::run_sandbox_consumer(&url, &options).await
-            {
+            if let Err(e) = crate::jetstream_consumer::run_sandbox_consumer(&url, &options).await {
                 tracing::error!(error = %e, "JetStream sandbox consumer stopped");
             }
         });

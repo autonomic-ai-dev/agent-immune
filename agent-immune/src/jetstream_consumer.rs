@@ -46,7 +46,10 @@ async fn publish_result(js: &jetstream::Context, result: &ExecuteResult) -> Resu
     Ok(())
 }
 
-pub async fn run_sandbox_consumer(url: &str, options: &crate::sandbox::SandboxOptions) -> Result<()> {
+pub async fn run_sandbox_consumer(
+    url: &str,
+    options: &crate::sandbox::SandboxOptions,
+) -> Result<()> {
     let js = connect_js(url).await?;
     let consumer = js
         .get_consumer_from_stream("immune-sandbox", STREAM_NAME)
