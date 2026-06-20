@@ -33,25 +33,10 @@ impl Default for Config {
 
 impl Config {
     pub fn config_path() -> PathBuf {
-        dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
-            .join("agent-immune")
-            .join("config.yaml")
+        agent_body_core::config_path()
     }
 
     pub fn load() -> Result<Self> {
-        let path = Self::config_path();
-        if path.exists() {
-            let s = std::fs::read_to_string(&path)?;
-            Ok(serde_yaml::from_str(&s)?)
-        } else {
-            let cfg = Config::default();
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            let s = serde_yaml::to_string(&cfg)?;
-            std::fs::write(&path, &s)?;
-            Ok(cfg)
-        }
+        agent_body_core::organ_config::load("immune")
     }
 }
