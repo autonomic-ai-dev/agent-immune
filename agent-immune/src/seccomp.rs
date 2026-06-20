@@ -95,7 +95,7 @@ const ALLOWED_SYSCALLS: &[i64] = &[
     libc::SYS_rt_sigprocmask,
     libc::SYS_rt_sigreturn,
     libc::SYS_ioctl,
-    libc::SYS_access,
+    libc::SYS_faccessat,
     libc::SYS_pipe2,
     libc::SYS_dup,
     libc::SYS_dup3,
