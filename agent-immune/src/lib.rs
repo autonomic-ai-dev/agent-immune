@@ -1,8 +1,10 @@
 pub mod config;
+pub mod firecracker;
 pub mod jetstream_consumer;
 pub mod leak_check;
 pub mod sandbox;
 pub mod scanner;
+pub mod seccomp;
 pub mod serve;
 
 use anyhow::Result;

@@ -1,19 +1,35 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Stdio;
 use tokio::process::Command;
 use tracing::warn;
 
 use agent_body_core::{ExecuteResult, SandboxExecute};
 
+use crate::config::SandboxConfig as ImmuneSandboxConfig;
+
 #[derive(Debug, Clone)]
 pub struct SandboxOptions {
     pub network_blackhole: bool,
+    pub backend: String,
+    pub seccomp: bool,
 }
 
 impl Default for SandboxOptions {
     fn default() -> Self {
         Self {
             network_blackhole: true,
+            backend: "subprocess".into(),
+            seccomp: true,
+        }
+    }
+}
+
+impl From<&ImmuneSandboxConfig> for SandboxOptions {
+    fn from(cfg: &ImmuneSandboxConfig) -> Self {
+        Self {
+            network_blackhole: cfg.network_blackhole,
+            backend: cfg.backend.clone(),
+            seccomp: cfg.seccomp,
         }
     }
 }
@@ -26,10 +42,32 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
         .map(Path::new)
         .unwrap_or_else(|| Path::new("."));
 
+    if options.backend == "firecracker" {
+        if let Some(fc_cfg) = crate::firecracker::FirecrackerConfig::from_env() {
+            match crate::firecracker::run_command(&job.command, cwd, &fc_cfg).await {
+                Ok(out) => {
+                    return ExecuteResult {
+                        msg_id: format!("{}-result", job.msg_id),
+                        job_id: job.job_id.clone(),
+                        exit_code: out.status.code().unwrap_or(-1),
+                        stdout: String::from_utf8_lossy(&out.stdout).into(),
+                        stderr: String::from_utf8_lossy(&out.stderr).into(),
+                        success: out.status.success(),
+                    };
+                }
+                Err(e) => {
+                    warn!("firecracker backend failed ({e}); falling back to subprocess");
+                }
+            }
+        } else {
+            warn!("firecracker backend requested but AUTONOMIC_FC_KERNEL/ROOTFS not configured; using subprocess");
+        }
+    }
+
     let output = if options.network_blackhole {
-        run_with_network_blackhole(&job.command, cwd).await
+        run_with_network_blackhole(&job.command, cwd, options.seccomp).await
     } else {
-        run_plain(&job.command, cwd).await
+        run_plain(&job.command, cwd, options.seccomp).await
     };
 
     match output {
@@ -76,53 +114,85 @@ pub async fn run_script(path: &Path, options: &SandboxOptions) -> ExecuteResult 
     run_isolated(&job, options).await
 }
 
-async fn run_plain(command: &str, cwd: &Path) -> std::io::Result<std::process::Output> {
-    if cfg!(target_os = "windows") {
-        Command::new("cmd")
-            .args(["/C", command])
-            .current_dir(cwd)
-            .env_clear()
-            .env("PATH", std::env::var("PATH").unwrap_or_default())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await
-    } else {
-        Command::new("sh")
-            .args(["-c", command])
-            .current_dir(cwd)
-            .env_clear()
-            .env("PATH", std::env::var("PATH").unwrap_or_default())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await
-    }
+async fn run_plain(
+    command: &str,
+    cwd: &Path,
+    seccomp: bool,
+) -> std::io::Result<std::process::Output> {
+    spawn_shell(command, cwd, seccomp, false).await
 }
 
 async fn run_with_network_blackhole(
     command: &str,
     cwd: &Path,
+    seccomp: bool,
 ) -> std::io::Result<std::process::Output> {
     #[cfg(target_os = "linux")]
     {
         tracing::info!("sandbox: network blackhole via unshare -n");
-        return Command::new("unshare")
-            .args(["-n", "sh", "-c", command])
-            .current_dir(cwd)
-            .env_clear()
-            .env("PATH", std::env::var("PATH").unwrap_or_default())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .await;
+        return spawn_shell(command, cwd, seccomp, true).await;
     }
 
     #[cfg(not(target_os = "linux"))]
     {
         warn!("network blackhole requires Linux (unshare -n); running env-isolated subprocess");
-        run_plain(command, cwd).await
+        spawn_shell(command, cwd, seccomp, false).await
     }
+}
+
+async fn spawn_shell(
+    command: &str,
+    cwd: &Path,
+    seccomp: bool,
+    network_blackhole: bool,
+) -> std::io::Result<std::process::Output> {
+    #[cfg(target_os = "linux")]
+    if seccomp {
+        let cwd = cwd.to_path_buf();
+        let command = command.to_string();
+        return tokio::task::spawn_blocking(move || {
+            let mut cmd = if network_blackhole {
+                let mut c = std::process::Command::new("unshare");
+                c.args(["-n", "sh", "-c", &command]);
+                c
+            } else {
+                let mut c = std::process::Command::new("sh");
+                c.args(["-c", &command]);
+                c
+            };
+            cmd.current_dir(&cwd)
+                .env_clear()
+                .env("PATH", std::env::var("PATH").unwrap_or_default())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
+            crate::seccomp::apply_to_command(&mut cmd);
+            cmd.output()
+        })
+        .await
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
+    }
+
+    let mut cmd = if network_blackhole {
+        let mut c = Command::new("unshare");
+        c.args(["-n", "sh", "-c", command]);
+        c
+    } else if cfg!(target_os = "windows") {
+        let mut c = Command::new("cmd");
+        c.args(["/C", command]);
+        c
+    } else {
+        let mut c = Command::new("sh");
+        c.args(["-c", command]);
+        c
+    };
+
+    cmd.current_dir(cwd)
+        .env_clear()
+        .env("PATH", std::env::var("PATH").unwrap_or_default())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await
 }
 
 fn shell_escape(path: &Path) -> String {
@@ -137,6 +207,7 @@ fn shell_escape(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn shell_escape_quotes_spaces() {

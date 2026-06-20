@@ -53,9 +53,9 @@ async fn main() -> anyhow::Result<()> {
             script,
             allow_network,
         } => {
-            let options = agent_immune::sandbox::SandboxOptions {
-                network_blackhole: !allow_network,
-            };
+            let config = agent_immune::config::Config::load()?;
+            let mut options = agent_immune::sandbox::SandboxOptions::from(&config.sandbox);
+            options.network_blackhole = !allow_network;
             let result = agent_immune::sandbox::run_script(&script, &options).await;
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
@@ -81,6 +81,12 @@ async fn main() -> anyhow::Result<()> {
             println!("  nats_url: {}", config.nats.url);
             println!("  jetstream_consumer: {}", config.nats.jetstream_consumer);
             println!("  network_blackhole: {}", config.sandbox.network_blackhole);
+            println!("  sandbox_backend: {}", config.sandbox.backend);
+            println!("  seccomp: {}", config.sandbox.seccomp);
+            println!(
+                "  firecracker_ready: {}",
+                agent_immune::firecracker::is_available()
+            );
         }
     }
     Ok(())

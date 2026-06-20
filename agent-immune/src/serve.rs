@@ -12,10 +12,9 @@ pub async fn start(config: Config) -> anyhow::Result<()> {
 
     if config.nats.jetstream_consumer {
         let url = config.nats.url.clone();
-        let network_blackhole = config.sandbox.network_blackhole;
+        let options = crate::sandbox::SandboxOptions::from(&config.sandbox);
         tokio::spawn(async move {
-            if let Err(e) =
-                crate::jetstream_consumer::run_sandbox_consumer(&url, network_blackhole).await
+            if let Err(e) = crate::jetstream_consumer::run_sandbox_consumer(&url, &options).await
             {
                 tracing::error!(error = %e, "JetStream sandbox consumer stopped");
             }
@@ -40,6 +39,9 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
         "status": "ok",
         "jetstream_consumer": state.config.nats.jetstream_consumer,
         "network_blackhole": state.config.sandbox.network_blackhole,
+        "sandbox_backend": state.config.sandbox.backend,
+        "seccomp": state.config.sandbox.seccomp,
+        "firecracker_ready": crate::firecracker::is_available(),
         "nats_url": state.config.nats.url,
     }))
 }

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-20
+
+### Added
+
+- **Firecracker backend** — `sandbox.backend = "firecracker"` with `AUTONOMIC_FC_KERNEL` + `AUTONOMIC_FC_ROOTFS`
+- **Seccomp-BPF profiles** — Linux subprocess sandbox applies syscall filter (`sandbox.seccomp`, default true)
+
 ## [0.4.0] - 2026-06-20
 
 ### Added

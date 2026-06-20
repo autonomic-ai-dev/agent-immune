@@ -25,6 +25,20 @@ pub struct NatsConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SandboxConfig {
     pub network_blackhole: bool,
+    /// `subprocess` (default) or `firecracker`
+    #[serde(default = "default_sandbox_backend")]
+    pub backend: String,
+    /// Apply seccomp-BPF before subprocess spawn (Linux only).
+    #[serde(default = "default_true")]
+    pub seccomp: bool,
+}
+
+fn default_sandbox_backend() -> String {
+    "subprocess".into()
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,6 +61,8 @@ impl Default for Config {
             },
             sandbox: SandboxConfig {
                 network_blackhole: true,
+                backend: "subprocess".into(),
+                seccomp: true,
             },
             scanner: ScannerConfig {
                 osv_api_url: "https://api.osv.dev/v1".into(),
