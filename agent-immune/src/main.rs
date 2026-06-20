@@ -16,6 +16,14 @@ enum Commands {
     },
     /// Start daemon (placeholder)
     Serve,
+    /// Run a script in the network-isolated sandbox (CLI)
+    Sandbox {
+        /// Path to script or shell command file
+        script: std::path::PathBuf,
+        /// Allow network egress (default: blocked on Linux via unshare -n)
+        #[arg(long)]
+        allow_network: bool,
+    },
     /// Show configuration and status
     Status,
 }
@@ -33,6 +41,13 @@ async fn main() -> anyhow::Result<()> {
             let config = agent_immune::config::Config::load()?;
             agent_immune::serve::start(config).await?;
         }
+        Commands::Sandbox { script, allow_network } => {
+            let options = agent_immune::sandbox::SandboxOptions {
+                network_blackhole: !allow_network,
+            };
+            let result = agent_immune::sandbox::run_script(&script, &options).await;
+            println!("{}", serde_json::to_string_pretty(&result)?);
+        }
         Commands::Status => {
             let config = agent_immune::config::Config::load()?;
             println!("agent-immune status");
@@ -40,6 +55,7 @@ async fn main() -> anyhow::Result<()> {
             println!("  port: {}", config.server.port);
             println!("  nats_url: {}", config.nats.url);
             println!("  jetstream_consumer: {}", config.nats.jetstream_consumer);
+            println!("  network_blackhole: {}", config.sandbox.network_blackhole);
         }
     }
     Ok(())

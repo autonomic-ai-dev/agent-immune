@@ -52,7 +52,7 @@ async fn publish_result(js: &jetstream::Context, result: &ExecuteResult) -> Resu
     Ok(())
 }
 
-pub async fn run_sandbox_consumer(url: &str) -> Result<()> {
+pub async fn run_sandbox_consumer(url: &str, network_blackhole: bool) -> Result<()> {
     let js = connect_js(url).await?;
     let consumer = js
         .get_consumer_from_stream("immune-sandbox", STREAM_NAME)
@@ -88,7 +88,10 @@ pub async fn run_sandbox_consumer(url: &str) -> Result<()> {
             }
         };
 
-        let result = crate::sandbox::run_isolated(&job).await;
+        let options = crate::sandbox::SandboxOptions {
+            network_blackhole,
+        };
+        let result = crate::sandbox::run_isolated(&job, &options).await;
         if let Err(e) = publish_result(&js, &result).await {
             warn!(error = %e, "failed to publish execute result");
         }

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 pub struct Config {
     pub server: ServerConfig,
     pub nats: NatsConfig,
+    pub sandbox: SandboxConfig,
     pub scanner: ScannerConfig,
     pub logging: LoggingConfig,
 }
@@ -19,6 +20,11 @@ pub struct ServerConfig {
 pub struct NatsConfig {
     pub url: String,
     pub jetstream_consumer: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SandboxConfig {
+    pub network_blackhole: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,6 +44,9 @@ impl Default for Config {
             nats: NatsConfig {
                 url: "nats://localhost:4222".into(),
                 jetstream_consumer: true,
+            },
+            sandbox: SandboxConfig {
+                network_blackhole: true,
             },
             scanner: ScannerConfig {
                 osv_api_url: "https://api.osv.dev/v1".into(),
