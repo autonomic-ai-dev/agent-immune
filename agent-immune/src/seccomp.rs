@@ -3,7 +3,10 @@
 #[cfg(target_os = "linux")]
 pub fn apply_to_command(cmd: &mut std::process::Command) {
     use std::os::unix::process::CommandExt;
-    cmd.pre_exec(|| install_default_filter().map_err(std::io::Error::other));
+    // SAFETY: pre_exec runs in the child between fork and exec; we only install seccomp.
+    unsafe {
+        cmd.pre_exec(|| install_default_filter().map_err(std::io::Error::other));
+    }
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -31,7 +34,9 @@ fn install_default_filter() -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
 
-    let bpf_prog: BpfProgram = filter.try_into().map_err(|e| e.to_string())?;
+    let bpf_prog: BpfProgram = filter
+        .try_into()
+        .map_err(|e: seccompiler::Error| e.to_string())?;
     apply_filter(&bpf_prog).map_err(|e| e.to_string())
 }
 

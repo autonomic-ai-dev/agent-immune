@@ -28,8 +28,8 @@ enum Commands {
     VerifyMemory {
         /// Script path or command file
         script: std::path::PathBuf,
-        /// Max RSS growth in KiB before failing (default 524288 = 512 MiB)
-        #[arg(long, default_value_t = 524288)]
+        /// Max RSS growth in KiB before failing (default 512 MiB)
+        #[arg(long, default_value_t = agent_immune::leak_check::DEFAULT_THRESHOLD_KB)]
         threshold_kb: u64,
     },
     /// Show configuration and status

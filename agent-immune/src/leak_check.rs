@@ -16,7 +16,7 @@ pub struct LeakCheckReport {
     pub message: String,
 }
 
-const DEFAULT_THRESHOLD_KB: u64 = 512 * 1024; // 512 MiB growth
+pub const DEFAULT_THRESHOLD_KB: u64 = 512 * 1024; // 512 MiB growth
 const SAMPLE_INTERVAL: Duration = Duration::from_millis(200);
 
 /// Run a command and fail if resident memory grows beyond `threshold_kb`.
@@ -25,6 +25,11 @@ pub async fn verify_no_memory_leak(
     cwd: Option<&Path>,
     threshold_kb: u64,
 ) -> Result<LeakCheckReport> {
+    let threshold_kb = if threshold_kb == 0 {
+        DEFAULT_THRESHOLD_KB
+    } else {
+        threshold_kb
+    };
     let mut cmd = Command::new("sh");
     cmd.arg("-c")
         .arg(command)

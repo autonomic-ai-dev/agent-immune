@@ -143,7 +143,7 @@ async fn run_with_network_blackhole(
 async fn spawn_shell(
     command: &str,
     cwd: &Path,
-    seccomp: bool,
+    #[cfg_attr(not(target_os = "linux"), allow(unused_variables))] seccomp: bool,
     network_blackhole: bool,
 ) -> std::io::Result<std::process::Output> {
     #[cfg(target_os = "linux")]
