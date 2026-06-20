@@ -30,14 +30,16 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Scan { path } => agent_immune::run_scan(&path).await?,
         Commands::Serve => {
-            let _cfg = agent_immune::config::Config::load()?;
-            println!("agent-immune serve (not yet implemented)");
-            println!("  config: {}", agent_immune::config::Config::config_path().display());
+            let config = agent_immune::config::Config::load()?;
+            agent_immune::serve::start(config).await?;
         }
         Commands::Status => {
-            let _cfg = agent_immune::config::Config::load()?;
+            let config = agent_immune::config::Config::load()?;
             println!("agent-immune status");
             println!("  config: {}", agent_immune::config::Config::config_path().display());
+            println!("  port: {}", config.server.port);
+            println!("  nats_url: {}", config.nats.url);
+            println!("  jetstream_consumer: {}", config.nats.jetstream_consumer);
         }
     }
     Ok(())

@@ -1,5 +1,9 @@
 pub mod config;
+pub mod jetstream_consumer;
+pub mod sandbox;
 pub mod scanner;
+pub mod serve;
+
 use anyhow::Result;
 use std::path::Path;
 
