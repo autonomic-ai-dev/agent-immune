@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
+#[command(version)]
 #[command(name = "agent-immune", about = "Dependency fuzzing & security sandbox")]
 struct Cli {
     #[command(subcommand)]
