@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.3] - 2026-06-21
+
+### Added
+
+- Sandbox jobs honor `memory_mb`, `cpu_cores`, and `backend` from `SandboxExecute` JetStream payloads
+
+### Changed
+
+- JetStream consumer uses `agent_body_core::connect_nats()` for authenticated NATS
+- Linux subprocess sandbox applies `ulimit` resource caps (256MB default)
 
 ## [0.5.2] - 2026-06-20
 

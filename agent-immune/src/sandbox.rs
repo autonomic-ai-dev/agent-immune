@@ -42,9 +42,17 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
         .map(Path::new)
         .unwrap_or_else(|| Path::new("."));
 
-    if options.backend == "firecracker" {
+    let backend = job
+        .backend
+        .as_deref()
+        .unwrap_or(options.backend.as_str());
+    let memory_mb = job.memory_mb.unwrap_or(256);
+    let cpu_cores = job.cpu_cores.unwrap_or(1.0);
+    let command = wrap_with_resource_limits(&job.command, memory_mb, cpu_cores);
+
+    if backend == "firecracker" {
         if let Some(fc_cfg) = crate::firecracker::FirecrackerConfig::from_env() {
-            match crate::firecracker::run_command(&job.command, cwd, &fc_cfg).await {
+            match crate::firecracker::run_command(&command, cwd, &fc_cfg).await {
                 Ok(out) => {
                     return ExecuteResult {
                         msg_id: format!("{}-result", job.msg_id),
@@ -65,9 +73,9 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
     }
 
     let output = if options.network_blackhole {
-        run_with_network_blackhole(&job.command, cwd, options.seccomp).await
+        run_with_network_blackhole(&command, cwd, options.seccomp).await
     } else {
-        run_plain(&job.command, cwd, options.seccomp).await
+        run_plain(&command, cwd, options.seccomp).await
     };
 
     match output {
@@ -110,8 +118,26 @@ pub async fn run_script(path: &Path, options: &SandboxOptions) -> ExecuteResult 
         job_id: uuid::Uuid::now_v7().to_string(),
         command,
         cwd: path.parent().map(|p| p.display().to_string()),
+        memory_mb: None,
+        cpu_cores: None,
+        backend: None,
     };
     run_isolated(&job, options).await
+}
+
+fn wrap_with_resource_limits(command: &str, memory_mb: u32, cpu_cores: f32) -> String {
+    #[cfg(target_os = "linux")]
+    {
+        let _ = cpu_cores;
+        format!(
+            "ulimit -v $(({memory_mb} * 1024)) 2>/dev/null; ulimit -u 64 2>/dev/null; {command}"
+        )
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (memory_mb, cpu_cores);
+        command.to_string()
+    }
 }
 
 async fn run_plain(

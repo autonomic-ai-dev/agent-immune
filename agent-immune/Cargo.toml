@@ -1,12 +1,12 @@
 [package]
 name = "agent-immune"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 
 [dependencies]
-agent-body-core = { git = "https://github.com/autonomic-ai-dev/agent-body" }
+agent-body-core = { path = "../../agent-body/core", features = ["nats"] }
 anyhow = "1"
-async-nats = "0.38"
+async-nats = "0.39"
 axum = "0.7"
 chrono = "0.4"
 clap = { version = "4", features = ["derive"] }
