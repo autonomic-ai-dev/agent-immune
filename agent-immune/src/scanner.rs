@@ -103,59 +103,67 @@ fn parse_package_json(path: &Path) -> Result<Vec<Package>> {
     Ok(packages)
 }
 
+#[derive(Debug, Deserialize)]
+struct OsvBatchResponse {
+    results: Vec<OsvResponse>,
+}
+
 pub async fn query_osv(packages: &[Package]) -> Result<ScanResult> {
-    use futures::stream::{self, StreamExt};
+    if packages.is_empty() {
+        return Ok(ScanResult {
+            packages: Vec::new(),
+            vulnerabilities: Vec::new(),
+        });
+    }
+
     let client = reqwest::Client::new();
-
-    let vulnerabilities: Vec<Vulnerability> = stream::iter(packages)
+    let queries: Vec<_> = packages
+        .iter()
         .map(|pkg| {
-            let client = client.clone();
-            async move {
-                let query = serde_json::json!({
-                    "package": {
-                        "name": pkg.name,
-                        "ecosystem": pkg.ecosystem,
-                    },
-                    "version": pkg.version,
-                });
+            serde_json::json!({
+                "package": {
+                    "name": pkg.name,
+                    "ecosystem": pkg.ecosystem,
+                },
+                "version": pkg.version,
+            })
+        })
+        .collect();
 
-                let mut vulns = Vec::new();
-                match client
-                    .post("https://api.osv.dev/v1/query")
-                    .json(&query)
-                    .send()
-                    .await
-                {
-                    Ok(resp) => {
-                        if let Ok(osv) = resp.json::<OsvResponse>().await {
-                            for vuln in osv.vulns {
-                                vulns.push(Vulnerability {
-                                    package: pkg.name.clone(),
-                                    version: pkg.version.clone(),
-                                    ecosystem: pkg.ecosystem.clone(),
-                                    osv_id: vuln.id,
-                                    summary: vuln.summary.unwrap_or_default(),
-                                    severity: vuln
-                                        .severity
-                                        .and_then(|s| s.first().map(|se| se.score.clone()))
-                                        .unwrap_or_default(),
-                                });
-                            }
+    let batch_query = serde_json::json!({ "queries": queries });
+    let mut vulnerabilities = Vec::new();
+
+    match client
+        .post("https://api.osv.dev/v1/querybatch")
+        .json(&batch_query)
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            if let Ok(osv_batch) = resp.json::<OsvBatchResponse>().await {
+                for (i, result) in osv_batch.results.into_iter().enumerate() {
+                    if let Some(pkg) = packages.get(i) {
+                        for vuln in result.vulns {
+                            vulnerabilities.push(Vulnerability {
+                                package: pkg.name.clone(),
+                                version: pkg.version.clone(),
+                                ecosystem: pkg.ecosystem.clone(),
+                                osv_id: vuln.id,
+                                summary: vuln.summary.unwrap_or_default(),
+                                severity: vuln
+                                    .severity
+                                    .and_then(|s| s.first().map(|se| se.score.clone()))
+                                    .unwrap_or_default(),
+                            });
                         }
                     }
-                    Err(e) => {
-                        tracing::warn!("OSV query failed for {}: {}", pkg.name, e);
-                    }
                 }
-                vulns
             }
-        })
-        .buffer_unordered(20)
-        .collect::<Vec<Vec<Vulnerability>>>()
-        .await
-        .into_iter()
-        .flatten()
-        .collect();
+        }
+        Err(e) => {
+            tracing::warn!("OSV batch query failed: {}", e);
+        }
+    }
 
     Ok(ScanResult {
         packages: packages.to_vec(),
