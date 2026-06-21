@@ -4,7 +4,7 @@ version = "0.5.3"
 edition = "2021"
 
 [dependencies]
-agent-body-core = { path = "../../agent-body/core", features = ["nats"] }
+agent-body-core = { git = "https://github.com/autonomic-ai-dev/agent-body", features = ["nats"] }
 anyhow = "1"
 async-nats = "0.39"
 axum = "0.7"
