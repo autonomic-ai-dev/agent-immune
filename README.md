@@ -1,8 +1,10 @@
-# agent-immune — Security Organ for the Autonomic Ecosystem
+# agent-immune — Security for the Autonomic Stack
 
-**Dependency vulnerability scanning, OSV.dev integration, sandboxed execution (seccomp/Firecracker), and memory safety verification.**
+**Cloud-Native role: Admission / policy** (OPA / Gatekeeper analog) — OSV scanning, sandboxed execution, and memory safety verification.
 
-agent-immune is the **immune system** of the Autonomic AI ecosystem. It scans dependency manifests (Cargo.toml, package.json, requirements.txt) against the OSV.dev vulnerability database, executes untrusted code in network-isolated sandboxes with seccomp-BPF or Firecracker, and detects runaway memory growth in generated scripts.
+agent-immune enforces **zero-trust policy** for agent-generated code: dependency scans against OSV.dev, network-isolated sandboxes (seccomp-BPF or Firecracker), and runaway memory detection in generated scripts.
+
+> Codename: *immune organ*. Mapping: [cloud-native-platform.md](https://github.com/autonomic-ai-dev/agent-body/blob/master/docs/cloud-native-platform.md)
 
 The key design: **defense in depth across three layers** — static analysis (OSV scanning), runtime isolation (sandboxed execution), and behavioral monitoring (memory growth verification). Each layer is independently useful and all three compose for zero-trust agent workflows.
 
