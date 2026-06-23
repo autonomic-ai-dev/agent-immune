@@ -1,9 +1,33 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+
+use agent_body_core::cli::apply_progress_env;
+use agent_body_core::ui::ProgressMode;
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum ProgressArg {
+    Auto,
+    Plain,
+    Quiet,
+}
+
+impl From<ProgressArg> for ProgressMode {
+    fn from(value: ProgressArg) -> Self {
+        match value {
+            ProgressArg::Auto => ProgressMode::Auto,
+            ProgressArg::Plain => ProgressMode::Plain,
+            ProgressArg::Quiet => ProgressMode::Quiet,
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(version)]
 #[command(name = "agent-immune", about = "Dependency fuzzing & security sandbox")]
 struct Cli {
+    /// Progress output style: auto, plain, or quiet
+    #[arg(long, value_enum, global = true, default_value = "auto")]
+    progress: ProgressArg,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -44,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cli = Cli::parse();
+    apply_progress_env(cli.progress.into());
     match cli.command {
         Commands::Scan { path } => agent_immune::run_scan(&path).await?,
         Commands::Serve => {
