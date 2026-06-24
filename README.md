@@ -1,24 +1,24 @@
-# agent-immune — Security for the Autonomic Stack
+# agent-immune — Zero-Trust Security for the Autonomic Stack
 
-**Cloud-Native role: Admission / policy** (OPA / Gatekeeper analog) — OSV scanning, sandboxed execution, and memory safety verification.
+**Cloud-Native role: Admission / policy** (OPA / Gatekeeper analog) — OSV scanning, Firecracker sandboxing, and memory safety verification.
 
-agent-immune enforces **zero-trust policy** for agent-generated code: dependency scans against OSV.dev, network-isolated sandboxes (seccomp-BPF or Firecracker), and runaway memory detection in generated scripts.
-
-> Codename: *immune organ*. Mapping: [cloud-native-platform.md](https://github.com/autonomic-ai-dev/agent-body/blob/master/docs/cloud-native-platform.md)
-
-The key design: **defense in depth across three layers** — static analysis (OSV scanning), runtime isolation (sandboxed execution), and behavioral monitoring (memory growth verification). Each layer is independently useful and all three compose for zero-trust agent workflows.
+`agent-immune` is the Open Policy Agent (OPA) for the Autonomic cluster. AI agents generate untrusted code. Running that code directly on your host machine is a massive security risk. `agent-immune` enforces strict zero-trust execution boundaries, guaranteeing that rogue agent scripts cannot exfiltrate data, exploit CVEs, or crash your nodes with memory leaks.
 
 ---
 
-## Core Concept
+## Under the Hood: How it Works
 
-AI agents generate code — and generated code is untrusted code. It might contain malicious instructions, exploit vulnerable dependencies, or enter infinite loops that exhaust memory.
+### 1. Static Dependency Fuzzing
+Before an agent is allowed to execute a newly generated script or package, `agent-immune` intercepts the execution request. It parses the AST and dependency manifests (like `Cargo.toml` or `package.json`) and fuzzes them against the OSV.dev database using a highly concurrent `tokio` query buffer. If a known CVE is detected, execution is immediately rejected.
 
-agent-immune provides three safety layers:
+### 2. Zero-Trust Execution (Firecracker / Seccomp)
+When `agent-muscle` actually executes the code, it forces the execution through `agent-immune`'s sandbox. 
+Depending on your configuration, `agent-immune` will:
+- Wrap the subprocess in strict **seccomp-BPF** profiles to blackhole unauthorized network system calls.
+- Boot a full, ephemeral **Firecracker microVM** to execute the script in total isolation, destroying the VM milliseconds after the execution completes.
 
-1. **Static scanning** — parse dependency manifests, query OSV.dev (parallel, buffer-20 concurrency), report known CVEs before any code runs
-2. **Sandboxed execution** — run untrusted scripts in network-isolated environments (subprocess with seccomp, or full Firecracker micro-VM)
-3. **Memory verification** — monitor script peak RSS and growth rate to detect OOM-looping or runaway processes
+### 3. Runaway Memory Verification
+Agents often write accidental infinite `while` loops that leak memory. `agent-immune` monitors the peak RSS and memory growth rate of the sandboxed script in real-time. If it detects an OOM trajectory, it aggressively kills the process and returns a diagnostic trace to the LLM so it can fix the bug.
 
 ```mermaid
 flowchart LR
