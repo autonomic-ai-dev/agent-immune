@@ -5,6 +5,7 @@ pub mod leak_check;
 pub mod sandbox;
 pub mod scanner;
 pub mod seccomp;
+pub mod mcp_server;
 pub mod serve;
 
 use anyhow::Result;

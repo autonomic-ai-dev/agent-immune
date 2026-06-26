@@ -20,6 +20,13 @@ pub async fn start(config: Config) -> anyhow::Result<()> {
         });
     }
 
+    let mcp_config = config.clone();
+    tokio::spawn(async move {
+        if let Err(e) = crate::mcp_server::ImmuneMcp::run(mcp_config).await {
+            tracing::error!(error = %e, "MCP server stopped");
+        }
+    });
+
     let port = config.server.port;
     let state = Arc::new(AppState { config });
     let app = Router::new()
