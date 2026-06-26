@@ -22,6 +22,8 @@ tempfile = "3"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["v7"] }
+rmcp = { version = "0.1", features = ["server", "transport-io"] }
+schemars = "0.8"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
