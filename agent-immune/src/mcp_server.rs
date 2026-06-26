@@ -63,7 +63,9 @@ struct LintReport {
 
 #[tool(tool_box)]
 impl ImmuneMcp {
-    #[tool(description = "Scan a manifest file (Cargo.toml, package.json) against OSV.dev for known CVEs")]
+    #[tool(
+        description = "Scan a manifest file (Cargo.toml, package.json) against OSV.dev for known CVEs"
+    )]
     async fn immune_scan_manifest(
         &self,
         #[tool(aggr)] params: ScanManifestParams,
@@ -72,19 +74,23 @@ impl ImmuneMcp {
 
         let pkgs = crate::scanner::parse_manifest(&path)
             .map_err(|e| McpError::internal_error(format!("parse failed: {e}"), None))?;
-        let results = crate::scanner::query_osv(&pkgs).await
+        let results = crate::scanner::query_osv(&pkgs)
+            .await
             .map_err(|e| McpError::internal_error(format!("osv query failed: {e}"), None))?;
 
         let text = serde_json::to_string_pretty(&results).unwrap_or_default();
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
-    #[tool(description = "Execute an untrusted script in a sandboxed environment; returns output and exit code")]
+    #[tool(
+        description = "Execute an untrusted script in a sandboxed environment; returns output and exit code"
+    )]
     async fn immune_sandbox_run(
         &self,
         #[tool(aggr)] params: SandboxRunParams,
     ) -> Result<CallToolResult, McpError> {
-        let (_keep, path) = resolve_path_or_content(params.script_path, params.script_content, None)?;
+        let (_keep, path) =
+            resolve_path_or_content(params.script_path, params.script_content, None)?;
 
         let options = crate::sandbox::SandboxOptions::from(&self.config.sandbox);
         let result = crate::sandbox::run_script(&path, &options).await;
@@ -93,7 +99,9 @@ impl ImmuneMcp {
         Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
-    #[tool(description = "Run AST-based security linting against a code snippet; supports python and javascript")]
+    #[tool(
+        description = "Run AST-based security linting against a code snippet; supports python and javascript"
+    )]
     async fn immune_lint_ast(
         &self,
         #[tool(aggr)] params: LintAstParams,
@@ -158,17 +166,45 @@ fn resolve_path_or_content(
 fn lint_code(code: &str, language: &str) -> Result<Vec<LintWarning>, McpError> {
     let rules: &[(&str, &str, &str)] = match language {
         "python" | "py" => &[
-            ("eval", "call", "Dangerous eval() — arbitrary code execution risk"),
-            ("exec", "call", "Dangerous exec() — arbitrary code execution risk"),
+            (
+                "eval",
+                "call",
+                "Dangerous eval() — arbitrary code execution risk",
+            ),
+            (
+                "exec",
+                "call",
+                "Dangerous exec() — arbitrary code execution risk",
+            ),
             ("os.system", "call", "Shell injection risk via os.system()"),
             ("os.popen", "call", "Shell injection risk via os.popen()"),
-            ("pickle.loads", "call", "Insecure deserialization via pickle.loads()"),
-            ("pickle.load", "call", "Insecure deserialization via pickle.load()"),
+            (
+                "pickle.loads",
+                "call",
+                "Insecure deserialization via pickle.loads()",
+            ),
+            (
+                "pickle.load",
+                "call",
+                "Insecure deserialization via pickle.load()",
+            ),
         ],
         "javascript" | "js" | "typescript" | "ts" => &[
-            ("eval(", "call", "Dangerous eval() — arbitrary code execution risk"),
-            (".innerHTML", "assignment", "XSS risk via innerHTML assignment"),
-            ("new Function(", "call", "Dangerous Function constructor usage"),
+            (
+                "eval(",
+                "call",
+                "Dangerous eval() — arbitrary code execution risk",
+            ),
+            (
+                ".innerHTML",
+                "assignment",
+                "XSS risk via innerHTML assignment",
+            ),
+            (
+                "new Function(",
+                "call",
+                "Dangerous Function constructor usage",
+            ),
         ],
         _ => {
             return Err(McpError::invalid_params(
