@@ -42,10 +42,7 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
         .map(Path::new)
         .unwrap_or_else(|| Path::new("."));
 
-    let backend = job
-        .backend
-        .as_deref()
-        .unwrap_or(options.backend.as_str());
+    let backend = job.backend.as_deref().unwrap_or(options.backend.as_str());
     let memory_mb = job.memory_mb.unwrap_or(256);
     let cpu_cores = job.cpu_cores.unwrap_or(1.0);
     let command = wrap_with_resource_limits(&job.command, memory_mb, cpu_cores);

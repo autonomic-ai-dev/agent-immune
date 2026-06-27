@@ -2,10 +2,10 @@ pub mod config;
 pub mod firecracker;
 pub mod jetstream_consumer;
 pub mod leak_check;
+pub mod mcp_server;
 pub mod sandbox;
 pub mod scanner;
 pub mod seccomp;
-pub mod mcp_server;
 pub mod serve;
 
 use anyhow::Result;
