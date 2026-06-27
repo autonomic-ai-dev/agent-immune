@@ -235,3 +235,59 @@ fn lint_code(code: &str, language: &str) -> Result<Vec<LintWarning>, McpError> {
 
     Ok(warnings)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lint_code_detects_python_eval() {
+        let code = "x = eval(user_input)\nprint(x)";
+        let warnings = lint_code(code, "python").unwrap();
+        assert!(!warnings.is_empty());
+        assert!(warnings.iter().any(|w| w.message.contains("eval()")));
+    }
+
+    #[test]
+    fn lint_code_detects_javascript_inner_html() {
+        let code = "document.getElementById('x').innerHTML = '<b>hello</b>'";
+        let warnings = lint_code(code, "javascript").unwrap();
+        assert!(!warnings.is_empty());
+        assert!(warnings.iter().any(|w| w.message.contains("innerHTML")));
+    }
+
+    #[test]
+    fn lint_code_clean_python_returns_no_warnings() {
+        let code = "def add(a, b):\n    return a + b\nprint(add(1, 2))";
+        let warnings = lint_code(code, "python").unwrap();
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn lint_code_rejects_unsupported_language() {
+        let err = lint_code("fn main() {}", "rust").unwrap_err();
+        assert!(err.message.contains("unsupported"));
+    }
+
+    #[test]
+    fn resolve_path_or_content_requires_one_arg() {
+        let err = resolve_path_or_content(None, None, None).unwrap_err();
+        assert!(err.message.contains("exactly one"));
+    }
+
+    #[test]
+    fn resolve_path_or_content_uses_path_directly() {
+        let (_keep, path) =
+            resolve_path_or_content(Some("/tmp/test.sh".into()), None, None).unwrap();
+        assert_eq!(path.to_string_lossy(), "/tmp/test.sh");
+    }
+
+    #[test]
+    fn resolve_path_or_content_writes_temp_file() {
+        let (_keep, path) =
+            resolve_path_or_content(None, Some("dummy content".into()), None).unwrap();
+        assert!(path.exists());
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(content, "dummy content");
+    }
+}

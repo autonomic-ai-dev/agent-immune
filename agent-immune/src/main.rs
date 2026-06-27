@@ -39,8 +39,10 @@ enum Commands {
         /// Path to Cargo.toml or package.json
         path: std::path::PathBuf,
     },
-    /// Start daemon (placeholder)
+    /// Start daemon (HTTP + MCP server + JetStream consumer)
     Serve,
+    /// Start the MCP stdio server only (no HTTP daemon)
+    ServeMcp,
     /// Run a script in the network-isolated sandbox (CLI)
     Sandbox {
         /// Path to script or shell command file
@@ -74,6 +76,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Serve => {
             let config = agent_immune::config::Config::load()?;
             agent_immune::serve::start(config).await?;
+        }
+        Commands::ServeMcp => {
+            let config = agent_immune::config::Config::load()?;
+            agent_immune::mcp_server::ImmuneMcp::run(config).await?;
         }
         Commands::Sandbox {
             script,

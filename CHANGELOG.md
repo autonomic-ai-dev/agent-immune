@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] - 2026-06-27
+
+### Added
+
+- **`serve-mcp` subcommand** — starts the MCP stdio server only (no HTTP daemon). Used by `agent-body serve-mcp` gateway for persistent tool aggregation.
+- Dual-mode MCP server with organ tool naming convention (`immune_scan_manifest`, `immune_sandbox_run`, `immune_lint_ast`)
+- **Integration tests** — `ServeMcp` CLI parsing, `ImmuneMcp` tool handler response validation (manifest scan, sandbox run, AST lint)
+
 ## [0.5.6] - 2026-06-23
 
 ### Added

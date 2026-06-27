@@ -94,6 +94,7 @@ In standalone mode, immune is a CLI security tool. In integrated mode, it runs a
 | `agent-immune sandbox run -- <cmd>` | Execute in configured sandbox backend |
 | `agent-immune verify-memory <script>` | Memory growth verification (peak RSS + growth rate) |
 | `agent-immune serve` | HTTP API daemon on port 3106 |
+| `agent-immune serve-mcp` | Start MCP stdio server only (no HTTP daemon) |
 | `agent-immune status` | Show config, backends, scanner state |
 
 Global `--progress` (or `AGENT_PROGRESS=1`) enables structured ProgressTree CLI output.
