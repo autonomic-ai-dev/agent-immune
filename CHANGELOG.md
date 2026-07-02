@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **agent-body-core** — git tag `v0.5.17` with `wasm` feature (core 0.3.7)
+- **agent-body-core** — git branch `kernel-phase-1` with `wasm` feature until `v0.5.17` is tagged
 - **`ExecuteResult`** — propagates `fuel_consumed` and `memory_peak_bytes` from WASM runs
 
 ## [0.5.8] - 2026-06-27
