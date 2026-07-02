@@ -48,6 +48,8 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
         "sandbox_backend": state.config.sandbox.backend,
         "seccomp": state.config.sandbox.seccomp,
         "firecracker_ready": crate::firecracker::is_available(),
+        "wasm_sandbox": true,
+        "wasm_fuel_default": agent_body_core::default_fuel_limit(),
         "nats_url": state.config.nats.url,
     }))
 }

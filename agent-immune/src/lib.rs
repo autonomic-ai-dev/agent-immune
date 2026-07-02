@@ -7,6 +7,7 @@ pub mod sandbox;
 pub mod scanner;
 pub mod seccomp;
 pub mod serve;
+pub mod wasm_sandbox;
 
 use anyhow::Result;
 use std::path::Path;

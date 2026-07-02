@@ -45,6 +45,33 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
     let backend = job.backend.as_deref().unwrap_or(options.backend.as_str());
     let memory_mb = job.memory_mb.unwrap_or(256);
     let cpu_cores = job.cpu_cores.unwrap_or(1.0);
+
+    if backend == "wasm" {
+        let wasm_path = job
+            .wasm_path
+            .as_deref()
+            .map(Path::new)
+            .or_else(|| {
+                let cmd = job.command.trim();
+                if cmd.ends_with(".wasm") {
+                    Some(Path::new(cmd))
+                } else {
+                    None
+                }
+            });
+        if let Some(path) = wasm_path {
+            let opts = crate::wasm_sandbox::options_from_job(job);
+            let result = crate::wasm_sandbox::run_path(path, &opts).await;
+            return crate::wasm_sandbox::into_execute_result(job, result);
+        }
+        return crate::wasm_sandbox::into_execute_result(
+            job,
+            Err(crate::wasm_sandbox::WasmSandboxError::ValidationFailed(
+                anyhow::anyhow!("wasm backend requires wasm_path or command ending in .wasm"),
+            )),
+        );
+    }
+
     let command = wrap_with_resource_limits(&job.command, memory_mb, cpu_cores);
 
     if backend == "firecracker" {
@@ -58,6 +85,8 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
                         stdout: String::from_utf8_lossy(&out.stdout).into(),
                         stderr: String::from_utf8_lossy(&out.stderr).into(),
                         success: out.status.success(),
+                        fuel_consumed: None,
+                        memory_peak_bytes: None,
                     };
                 }
                 Err(e) => {
@@ -83,6 +112,8 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
             stdout: String::from_utf8_lossy(&out.stdout).into(),
             stderr: String::from_utf8_lossy(&out.stderr).into(),
             success: out.status.success(),
+            fuel_consumed: None,
+            memory_peak_bytes: None,
         },
         Err(e) => ExecuteResult {
             msg_id: format!("{}-result", job.msg_id),
@@ -91,6 +122,8 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
             stdout: String::new(),
             stderr: e.to_string(),
             success: false,
+            fuel_consumed: None,
+            memory_peak_bytes: None,
         },
     }
 }
@@ -107,6 +140,8 @@ pub async fn run_script(path: &Path, options: &SandboxOptions) -> ExecuteResult 
             stdout: String::new(),
             stderr: format!("script not found: {}", path.display()),
             success: false,
+            fuel_consumed: None,
+            memory_peak_bytes: None,
         };
     };
 
@@ -118,6 +153,9 @@ pub async fn run_script(path: &Path, options: &SandboxOptions) -> ExecuteResult 
         memory_mb: None,
         cpu_cores: None,
         backend: None,
+        wasm_path: None,
+        fuel_limit: None,
+        memory_limit_bytes: None,
     };
     run_isolated(&job, options).await
 }
