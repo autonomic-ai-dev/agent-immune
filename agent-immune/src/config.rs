@@ -25,9 +25,12 @@ pub struct NatsConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SandboxConfig {
     pub network_blackhole: bool,
-    /// `subprocess` (default) or `firecracker`
+    /// `subprocess` (default), `firecracker`, or `wasm`
     #[serde(default = "default_sandbox_backend")]
     pub backend: String,
+    /// Default WASM instruction fuel when `backend` is `wasm`.
+    #[serde(default)]
+    pub wasm_fuel_limit: Option<u64>,
     /// Apply seccomp-BPF before subprocess spawn (Linux only).
     #[serde(default = "default_true")]
     pub seccomp: bool,
@@ -63,6 +66,7 @@ impl Default for Config {
                 network_blackhole: true,
                 backend: "subprocess".into(),
                 seccomp: true,
+                wasm_fuel_limit: None,
             },
             scanner: ScannerConfig {
                 osv_api_url: "https://api.osv.dev/v1".into(),

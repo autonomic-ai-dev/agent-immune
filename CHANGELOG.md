@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.9] - 2026-07-02
+
+### Added
+
+- **WASM sandbox (Phase 1 kernel overhaul)** — `wasm_sandbox.rs` with fuel metering, memory limits, wall-clock timeout, and blake3 module cache via `agent-body-core::wasm_engine`
+- **`backend: "wasm"`** routing in `run_isolated` — set `wasm_path` or a `.wasm` command path; configure fuel via `AUTONOMIC_WASM_FUEL` (default 500M instructions)
+- **Health endpoint** — reports `wasm_sandbox` and default fuel budget
+
+### Changed
+
+- **agent-body-core** — git tag `v0.5.17` with `wasm` feature (core 0.3.7)
+- **`ExecuteResult`** — propagates `fuel_consumed` and `memory_peak_bytes` from WASM runs
+
 ## [0.5.8] - 2026-06-27
 
 ### Changed
