@@ -1,5 +1,7 @@
 # agent-immune — Zero-Trust Security for the Autonomic Stack
 
+Agent context: [docs/CONTEXT.md](docs/CONTEXT.md).
+
 **Cloud-Native role: Admission / policy** (OPA / Gatekeeper analog) — OSV scanning, Firecracker sandboxing, and memory safety verification.
 
 `agent-immune` is the Open Policy Agent (OPA) for the Autonomic cluster. AI agents generate untrusted code. Running that code directly on your host machine is a massive security risk. `agent-immune` enforces strict zero-trust execution boundaries, guaranteeing that rogue agent scripts cannot exfiltrate data, exploit CVEs, or crash your nodes with memory leaks.
