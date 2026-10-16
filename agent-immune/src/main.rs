@@ -61,6 +61,12 @@ enum Commands {
     },
     /// Show configuration and status
     Status,
+    /// Update agent-immune to the latest GitHub release
+    Update {
+        /// Force re-download even if already at latest version
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[tokio::main]
@@ -119,6 +125,13 @@ async fn main() -> anyhow::Result<()> {
                 "  firecracker_ready: {}",
                 agent_immune::firecracker::is_available()
             );
+        }
+        Commands::Update { force } => {
+            match agent_immune::update::run_update(force) {
+                Ok(true) => println!("agent-immune updated successfully."),
+                Ok(false) => println!("agent-immune is already up to date."),
+                Err(err) => return Err(err),
+            }
         }
     }
     Ok(())
