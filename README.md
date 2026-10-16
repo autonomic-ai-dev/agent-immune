@@ -115,10 +115,22 @@ Global `--progress` (or `AGENT_PROGRESS=1`) enables structured ProgressTree CLI 
 
 ## Quick Install
 
+### Homebrew (macOS — Recommended)
+
+```bash
+brew tap autonomic-ai-dev/tap
+brew install agent-immune
+
+# Or install the full stack:
+brew install autonomic-stack
+```
+
+### Direct Download / curl
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/autonomic-ai-dev/agent-immune/master/scripts/install.sh | bash
 
-# Or full stack:
+# Or full stack via curl:
 curl -fsSL https://raw.githubusercontent.com/autonomic-ai-dev/agent-body/master/scripts/install-all-organs.sh | bash
 ```
 
