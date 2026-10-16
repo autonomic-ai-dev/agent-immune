@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build agent-immune release and adhoc-sign on macOS.
+# Build agent-immune release and Developer ID–sign on macOS (Apple Silicon).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
