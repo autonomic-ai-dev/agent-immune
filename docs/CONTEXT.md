@@ -7,7 +7,8 @@ Zero-trust admission for Autonomic (OSV scan, sandbox, memory verify). Part of [
 | Role | Admission / policy (OPA analog) |
 | Binary | `agent-immune` |
 | HTTP | `:3106` |
-| Version | 0.5.10+ |
+| Version | v1.0.0-beta.2 |
+| Docs Hub | [https://autonomic-ai.dev/docs/security](https://autonomic-ai.dev/docs/security) · [Architecture](https://autonomic-ai.dev/docs/architecture) |
 
 ## When to use
 
@@ -35,4 +36,4 @@ Path filter on `agent-immune/**` + Cargo/Makefile/scripts/`.github`. Docs-only P
 
 ## Related
 
-Muscle (execution peer) · spine (policy nodes) · brain (verify)
+Operator usage: [https://autonomic-ai.dev/docs/security](https://autonomic-ai.dev/docs/security) · Architecture: [https://autonomic-ai.dev/docs/architecture](https://autonomic-ai.dev/docs/architecture) · Muscle (execution peer) · spine (policy nodes) · brain (verify)
