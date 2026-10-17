@@ -1,6 +1,6 @@
 # agent-immune — Zero-Trust Security for the Autonomic Stack
 
-Agent context: [docs/CONTEXT.md](docs/CONTEXT.md) · Security Guide: [https://autonomic-ai.dev/docs/security](https://autonomic-ai.dev/docs/security) · Architecture: [https://autonomic-ai.dev/docs/architecture](https://autonomic-ai.dev/docs/architecture).
+Agent context: [CONTEXT.md](CONTEXT.md) · Security Guide: [https://autonomic-ai.dev/docs/security](https://autonomic-ai.dev/docs/security) · Architecture: [https://autonomic-ai.dev/docs/architecture](https://autonomic-ai.dev/docs/architecture).
 
 **Cloud-Native role: Admission / policy** (OPA / Gatekeeper analog) — OSV scanning, Firecracker sandboxing, and memory safety verification.
 
