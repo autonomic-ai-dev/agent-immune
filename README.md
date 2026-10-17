@@ -1,6 +1,6 @@
 # agent-immune — Zero-Trust Security for the Autonomic Stack
 
-Agent context: [docs/CONTEXT.md](docs/CONTEXT.md) · Architecture: [https://autonomic-ai.dev/docs/architecture](https://autonomic-ai.dev/docs/architecture).
+Agent context: [docs/CONTEXT.md](docs/CONTEXT.md) · Security Guide: [https://autonomic-ai.dev/docs/security](https://autonomic-ai.dev/docs/security) · Architecture: [https://autonomic-ai.dev/docs/architecture](https://autonomic-ai.dev/docs/architecture).
 
 **Cloud-Native role: Admission / policy** (OPA / Gatekeeper analog) — OSV scanning, Firecracker sandboxing, and memory safety verification.
 
@@ -155,9 +155,11 @@ network_blackhole = true
 
 ---
 
-## Architecture
+## Architecture & Documentation
 
-For the complete 11-organ architecture specification, data flows, and MCP tool contracts, see the centralized [Autonomic AI Architecture Hub](https://autonomic-ai.dev/docs/architecture).
+For complete architectural specifications, Firecracker isolation models, and MCP tool contracts, visit the centralized documentation hub:
+- **Zero-Trust Security Guide**: [https://autonomic-ai.dev/docs/security](https://autonomic-ai.dev/docs/security)
+- **Ecosystem Architecture**: [https://autonomic-ai.dev/docs/architecture](https://autonomic-ai.dev/docs/architecture)
 
 ---
 
