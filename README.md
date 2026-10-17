@@ -1,6 +1,6 @@
 # agent-immune — Zero-Trust Security for the Autonomic Stack
 
-Agent context: [docs/CONTEXT.md](docs/CONTEXT.md).
+Agent context: [docs/CONTEXT.md](docs/CONTEXT.md) · Architecture: [https://autonomic-ai.dev/docs/architecture](https://autonomic-ai.dev/docs/architecture).
 
 **Cloud-Native role: Admission / policy** (OPA / Gatekeeper analog) — OSV scanning, Firecracker sandboxing, and memory safety verification.
 
@@ -152,6 +152,12 @@ Section `[immune]` in `~/.autonomic/config.toml` (default port **3106**).
 sandbox_backend = "process"    # "process", "seccomp", or "firecracker"
 network_blackhole = true
 ```
+
+---
+
+## Architecture
+
+For the complete 11-organ architecture specification, data flows, and MCP tool contracts, see the centralized [Autonomic AI Architecture Hub](https://autonomic-ai.dev/docs/architecture).
 
 ---
 
