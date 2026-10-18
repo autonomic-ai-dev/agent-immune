@@ -75,7 +75,10 @@ impl ResourceLimiter for LimiterState {
 }
 
 /// Execute a WASM module file; calls exported `run() -> i32` when present.
-pub async fn run_path(path: &Path, options: &WasmRunOptions) -> Result<WasmExecuteResult, WasmSandboxError> {
+pub async fn run_path(
+    path: &Path,
+    options: &WasmRunOptions,
+) -> Result<WasmExecuteResult, WasmSandboxError> {
     let bytes = tokio::fs::read(path)
         .await
         .with_context(|| format!("read wasm module {}", path.display()))
@@ -102,13 +105,16 @@ pub async fn run_bytes(
     .map_err(|_| WasmSandboxError::WallClockTimeout { ms: timeout_ms })?
 }
 
-fn execute_sync(wasm_bytes: &[u8], options: &WasmRunOptions) -> Result<WasmExecuteResult, WasmSandboxError> {
+fn execute_sync(
+    wasm_bytes: &[u8],
+    options: &WasmRunOptions,
+) -> Result<WasmExecuteResult, WasmSandboxError> {
     let engine = shared_wasm_engine();
     let module = engine
         .get_or_compile(wasm_bytes)
         .map_err(WasmSandboxError::ValidationFailed)?;
 
-    let mut state = LimiterState {
+    let state = LimiterState {
         memory_limit_bytes: options.memory_limit_bytes,
         peak_memory: 0,
     };
@@ -187,9 +193,7 @@ fn map_trap_to_error(err: wasmtime::Error) -> WasmSandboxError {
 pub fn options_from_job(job: &agent_body_core::SandboxExecute) -> WasmRunOptions {
     WasmRunOptions {
         fuel_limit: job.fuel_limit.unwrap_or_else(default_fuel_limit),
-        memory_limit_bytes: job
-            .memory_limit_bytes
-            .unwrap_or(16 * 1024 * 1024),
+        memory_limit_bytes: job.memory_limit_bytes.unwrap_or(16 * 1024 * 1024),
         wall_clock_timeout_ms: 10_000,
     }
 }
@@ -211,7 +215,9 @@ pub fn into_execute_result(
         },
         Err(e) => {
             let (exit_code, stderr) = match &e {
-                WasmSandboxError::OutOfFuel { consumed } => (-2, format!("out of fuel: {consumed}")),
+                WasmSandboxError::OutOfFuel { consumed } => {
+                    (-2, format!("out of fuel: {consumed}"))
+                }
                 WasmSandboxError::OutOfMemory { requested, limit } => {
                     (-3, format!("out of memory: {requested}/{limit}"))
                 }

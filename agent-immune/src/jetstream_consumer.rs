@@ -7,7 +7,7 @@ use tracing::{error, info, warn};
 use agent_body_core::nats::subjects;
 use agent_body_core::{ExecuteResult, SandboxExecute, STREAM_NAME, STREAM_SUBJECT_WILDCARD};
 
-async fn connect_js(url: &str) -> Result<jetstream::Context> {
+async fn connect_js(_url: &str) -> Result<jetstream::Context> {
     let client = agent_body_core::connect_nats()
         .await
         .context("connect to NATS")?;
