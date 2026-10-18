@@ -47,18 +47,14 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
     let cpu_cores = job.cpu_cores.unwrap_or(1.0);
 
     if backend == "wasm" {
-        let wasm_path = job
-            .wasm_path
-            .as_deref()
-            .map(Path::new)
-            .or_else(|| {
-                let cmd = job.command.trim();
-                if cmd.ends_with(".wasm") {
-                    Some(Path::new(cmd))
-                } else {
-                    None
-                }
-            });
+        let wasm_path = job.wasm_path.as_deref().map(Path::new).or_else(|| {
+            let cmd = job.command.trim();
+            if cmd.ends_with(".wasm") {
+                Some(Path::new(cmd))
+            } else {
+                None
+            }
+        });
         if let Some(path) = wasm_path {
             let opts = crate::wasm_sandbox::options_from_job(job);
             let result = crate::wasm_sandbox::run_path(path, &opts).await;

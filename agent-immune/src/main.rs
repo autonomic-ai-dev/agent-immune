@@ -72,6 +72,7 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
@@ -126,13 +127,11 @@ async fn main() -> anyhow::Result<()> {
                 agent_immune::firecracker::is_available()
             );
         }
-        Commands::Update { force } => {
-            match agent_immune::update::run_update(force) {
-                Ok(true) => println!("agent-immune updated successfully."),
-                Ok(false) => println!("agent-immune is already up to date."),
-                Err(err) => return Err(err),
-            }
-        }
+        Commands::Update { force } => match agent_immune::update::run_update(force) {
+            Ok(true) => println!("agent-immune updated successfully."),
+            Ok(false) => println!("agent-immune is already up to date."),
+            Err(err) => return Err(err),
+        },
     }
     Ok(())
 }
