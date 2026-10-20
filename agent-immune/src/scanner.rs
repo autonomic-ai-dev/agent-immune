@@ -1,6 +1,10 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
+
+const OSV_BATCH_URL: &str = "https://api.osv.dev/v1/querybatch";
+const OSV_VULN_URL: &str = "https://api.osv.dev/v1/vulns/";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Package {
@@ -13,6 +17,7 @@ pub struct Package {
 pub struct ScanResult {
     pub packages: Vec<Package>,
     pub vulnerabilities: Vec<Vulnerability>,
+    pub blocking: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -27,22 +32,28 @@ pub struct Vulnerability {
 
 #[derive(Debug, Deserialize)]
 struct OsvResponse {
+    #[serde(default)]
     vulns: Vec<OsvVuln>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OsvVuln {
     id: String,
-    summary: Option<String>,
-    severity: Option<Vec<OsvSeverity>>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct OsvSeverity {
-    #[serde(rename = "type")]
-    severity_type: String,
-    score: String,
+struct OsvDetail {
+    summary: Option<String>,
+    database_specific: Option<OsvDatabaseSpecific>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OsvDatabaseSpecific {
+    severity: Option<String>,
+}
+
+fn is_blocking_severity(severity: &str) -> bool {
+    matches!(severity, "CRITICAL" | "HIGH" | "UNKNOWN")
 }
 
 pub fn parse_manifest(path: &Path) -> Result<Vec<Package>> {
@@ -113,6 +124,7 @@ pub async fn query_osv(packages: &[Package]) -> Result<ScanResult> {
         return Ok(ScanResult {
             packages: Vec::new(),
             vulnerabilities: Vec::new(),
+            blocking: false,
         });
     }
 
@@ -131,42 +143,92 @@ pub async fn query_osv(packages: &[Package]) -> Result<ScanResult> {
         .collect();
 
     let batch_query = serde_json::json!({ "queries": queries });
-    let mut vulnerabilities = Vec::new();
-
-    match client
-        .post("https://api.osv.dev/v1/querybatch")
+    let batch: OsvBatchResponse = client
+        .post(OSV_BATCH_URL)
         .json(&batch_query)
         .send()
-        .await
-    {
-        Ok(resp) => {
-            if let Ok(osv_batch) = resp.json::<OsvBatchResponse>().await {
-                for (i, result) in osv_batch.results.into_iter().enumerate() {
-                    if let Some(pkg) = packages.get(i) {
-                        for vuln in result.vulns {
-                            vulnerabilities.push(Vulnerability {
-                                package: pkg.name.clone(),
-                                version: pkg.version.clone(),
-                                ecosystem: pkg.ecosystem.clone(),
-                                osv_id: vuln.id,
-                                summary: vuln.summary.unwrap_or_default(),
-                                severity: vuln
-                                    .severity
-                                    .and_then(|s| s.first().map(|se| se.score.clone()))
-                                    .unwrap_or_default(),
-                            });
-                        }
-                    }
-                }
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    let mut details: HashMap<String, (String, String)> = HashMap::new();
+    let mut vulnerabilities = Vec::new();
+    for (i, result) in batch.results.into_iter().enumerate() {
+        let Some(pkg) = packages.get(i) else {
+            continue;
+        };
+        for vuln in result.vulns {
+            if !details.contains_key(&vuln.id) {
+                let detail = fetch_detail(&client, &vuln.id).await?;
+                details.insert(vuln.id.clone(), detail);
             }
-        }
-        Err(e) => {
-            tracing::warn!("OSV batch query failed: {}", e);
+            let (summary, severity) = details[&vuln.id].clone();
+            vulnerabilities.push(Vulnerability {
+                package: pkg.name.clone(),
+                version: pkg.version.clone(),
+                ecosystem: pkg.ecosystem.clone(),
+                osv_id: vuln.id,
+                summary,
+                severity,
+            });
         }
     }
 
+    let blocking = vulnerabilities
+        .iter()
+        .any(|v| is_blocking_severity(&v.severity));
     Ok(ScanResult {
         packages: packages.to_vec(),
         vulnerabilities,
+        blocking,
     })
+}
+
+async fn fetch_detail(client: &reqwest::Client, osv_id: &str) -> Result<(String, String)> {
+    let detail: OsvDetail = client
+        .get(format!("{OSV_VULN_URL}{osv_id}"))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let severity = detail
+        .database_specific
+        .and_then(|d| d.severity)
+        .map(|s| s.to_uppercase())
+        .unwrap_or_else(|| "UNKNOWN".into());
+    Ok((detail.summary.unwrap_or_default(), severity))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn critical_high_and_unknown_severities_block() {
+        assert!(is_blocking_severity("CRITICAL"));
+        assert!(is_blocking_severity("HIGH"));
+        assert!(is_blocking_severity("UNKNOWN"));
+        assert!(!is_blocking_severity("MODERATE"));
+        assert!(!is_blocking_severity("LOW"));
+    }
+
+    #[test]
+    fn detail_without_database_severity_parses_to_no_severity() {
+        let detail: OsvDetail = serde_json::from_str(r#"{"id":"X","summary":"s"}"#).unwrap();
+        assert_eq!(detail.summary.as_deref(), Some("s"));
+        assert!(detail.database_specific.and_then(|d| d.severity).is_none());
+    }
+
+    #[test]
+    fn detail_reads_database_severity() {
+        let detail: OsvDetail =
+            serde_json::from_str(r#"{"id":"GHSA-x","database_specific":{"severity":"HIGH"}}"#)
+                .unwrap();
+        assert_eq!(
+            detail.database_specific.and_then(|d| d.severity).as_deref(),
+            Some("HIGH")
+        );
+    }
 }
