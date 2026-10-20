@@ -26,5 +26,8 @@ pub async fn run_scan(path: &Path) -> Result<()> {
     );
     let results = scanner::query_osv(&pkgs).await?;
     println!("{}", serde_json::to_string_pretty(&results)?);
+    if results.blocking {
+        anyhow::bail!("scan failed: critical, high or unknown-severity vulnerabilities found");
+    }
     Ok(())
 }
