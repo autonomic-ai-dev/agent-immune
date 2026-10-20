@@ -1,7 +1,11 @@
 use std::path::Path;
 use std::process::Stdio;
+use std::time::Duration;
 use tokio::process::Command;
 use tracing::warn;
+
+const SANDBOX_TIMEOUT_SECS: u64 = 60;
+const OVERLAY_MAX_BYTES: u64 = 256 * 1024 * 1024;
 
 use agent_body_core::{ExecuteResult, SandboxExecute};
 
@@ -36,6 +40,14 @@ impl From<&ImmuneSandboxConfig> for SandboxOptions {
 
 /// Run a command in an isolated subprocess with optional network egress blackhole.
 pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> ExecuteResult {
+    run_with_timeout(job, options, Duration::from_secs(SANDBOX_TIMEOUT_SECS)).await
+}
+
+async fn run_with_timeout(
+    job: &SandboxExecute,
+    options: &SandboxOptions,
+    limit: Duration,
+) -> ExecuteResult {
     let cwd = job
         .cwd
         .as_deref()
@@ -94,10 +106,20 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
         }
     }
 
-    let output = if options.network_blackhole {
-        run_with_network_blackhole(&command, cwd, options.seccomp).await
-    } else {
-        run_plain(&command, cwd, options.seccomp).await
+    let overlay = match overlay_workspace(cwd) {
+        Ok(dir) => dir,
+        Err(e) => return failed_result(job, format!("overlay workspace failed: {e}")),
+    };
+    let run = async {
+        if options.network_blackhole {
+            run_with_network_blackhole(&command, overlay.path(), options.seccomp).await
+        } else {
+            run_plain(&command, overlay.path(), options.seccomp).await
+        }
+    };
+    let output = match tokio::time::timeout(limit, run).await {
+        Ok(output) => output,
+        Err(_) => return failed_result(job, format!("killed after {limit:?} timeout")),
     };
 
     match output {
@@ -111,17 +133,50 @@ pub async fn run_isolated(job: &SandboxExecute, options: &SandboxOptions) -> Exe
             fuel_consumed: None,
             memory_peak_bytes: None,
         },
-        Err(e) => ExecuteResult {
-            msg_id: format!("{}-result", job.msg_id),
-            job_id: job.job_id.clone(),
-            exit_code: -1,
-            stdout: String::new(),
-            stderr: e.to_string(),
-            success: false,
-            fuel_consumed: None,
-            memory_peak_bytes: None,
-        },
+        Err(e) => failed_result(job, e.to_string()),
     }
+}
+
+fn failed_result(job: &SandboxExecute, stderr: String) -> ExecuteResult {
+    ExecuteResult {
+        msg_id: format!("{}-result", job.msg_id),
+        job_id: job.job_id.clone(),
+        exit_code: -1,
+        stdout: String::new(),
+        stderr,
+        success: false,
+        fuel_consumed: None,
+        memory_peak_bytes: None,
+    }
+}
+
+fn overlay_workspace(src: &Path) -> std::io::Result<tempfile::TempDir> {
+    let dir = tempfile::Builder::new()
+        .prefix("sandbox-overlay-")
+        .tempdir()?;
+    let mut budget = OVERLAY_MAX_BYTES;
+    copy_tree(src, dir.path(), &mut budget)?;
+    Ok(dir)
+}
+
+fn copy_tree(src: &Path, dst: &Path, budget: &mut u64) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let from = entry.path();
+        let to = dst.join(entry.file_name());
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            std::fs::create_dir(&to)?;
+            copy_tree(&from, &to, budget)?;
+        } else if file_type.is_file() {
+            let len = entry.metadata()?.len();
+            *budget = budget
+                .checked_sub(len)
+                .ok_or_else(|| std::io::Error::other("workspace exceeds the overlay size limit"))?;
+            std::fs::copy(&from, &to)?;
+        }
+    }
+    Ok(())
 }
 
 /// Run a local script file or inline command through the sandbox executor.
@@ -248,6 +303,7 @@ async fn spawn_shell(
         .env("PATH", std::env::var("PATH").unwrap_or_default())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .kill_on_drop(true)
         .output()
         .await
 }
@@ -265,6 +321,65 @@ fn shell_escape(path: &Path) -> String {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    fn job_in(cwd: &Path, command: &str) -> SandboxExecute {
+        SandboxExecute {
+            msg_id: "m".into(),
+            job_id: "j".into(),
+            command: command.into(),
+            cwd: Some(cwd.display().to_string()),
+            memory_mb: None,
+            cpu_cores: None,
+            backend: None,
+            wasm_path: None,
+            fuel_limit: None,
+            memory_limit_bytes: None,
+        }
+    }
+
+    fn plain_options() -> SandboxOptions {
+        SandboxOptions {
+            network_blackhole: false,
+            backend: "subprocess".into(),
+            seccomp: false,
+        }
+    }
+
+    #[tokio::test]
+    async fn writes_inside_the_sandbox_do_not_reach_the_source_directory() {
+        let src = tempfile::tempdir().unwrap();
+        std::fs::write(src.path().join("input.txt"), "seed").unwrap();
+        let result = run_isolated(
+            &job_in(src.path(), "cat input.txt && echo leak > leaked.txt"),
+            &plain_options(),
+        )
+        .await;
+        assert!(result.success, "{}", result.stderr);
+        assert!(result.stdout.contains("seed"));
+        assert!(!src.path().join("leaked.txt").exists());
+    }
+
+    #[tokio::test]
+    async fn job_running_past_the_limit_is_killed() {
+        let src = tempfile::tempdir().unwrap();
+        let result = run_with_timeout(
+            &job_in(src.path(), "sleep 5"),
+            &plain_options(),
+            Duration::from_millis(200),
+        )
+        .await;
+        assert!(!result.success);
+        assert!(result.stderr.contains("timeout"), "{}", result.stderr);
+    }
+
+    #[test]
+    fn overlay_copy_stops_at_the_size_budget() {
+        let src = tempfile::tempdir().unwrap();
+        std::fs::write(src.path().join("big.bin"), vec![0u8; 10]).unwrap();
+        let dst = tempfile::tempdir().unwrap();
+        let mut budget = 5;
+        assert!(copy_tree(src.path(), dst.path(), &mut budget).is_err());
+    }
 
     #[test]
     fn shell_escape_quotes_spaces() {
