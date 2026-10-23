@@ -25,6 +25,11 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "git_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+      - name: Install nats-server
+        run: |
+          curl -fsSL https://github.com/nats-io/nats-server/releases/download/v2.10.22/nats-server-v2.10.22-linux-amd64.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nats-server-v2.10.22-linux-amd64" >> "$GITHUB_PATH"
+
       - name: Run tests
         run: cargo test --release -p agent-immune -- --test-threads=1
 

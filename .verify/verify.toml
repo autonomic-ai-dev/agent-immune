@@ -1,0 +1,4 @@
+[verify]
+commands = [
+  "sh .verify/checks/require_tests.sh --test jetstream_consumer_tests",
+]

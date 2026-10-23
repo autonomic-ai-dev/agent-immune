@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running tests/jetstream_consumer_tests.rs (target/debug/deps/jetstream_consumer_tests-bc3430333f79a1bd)
+
+running 1 test
+test sandbox_job_is_executed_and_its_result_published ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+passed=1

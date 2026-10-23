@@ -1,0 +1,38 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running unittests src/lib.rs (target/debug/deps/agent_immune-ae10d4b0dfc24383)
+
+running 18 tests
+test mcp_server::tests::resolve_path_or_content_requires_one_arg ... ok
+test mcp_server::tests::resolve_path_or_content_uses_path_directly ... ok
+test mcp_server::tests::lint_code_rejects_unsupported_language ... ok
+test sandbox::tests::shell_escape_quotes_spaces ... ok
+test mcp_server::tests::lint_code_clean_python_returns_no_warnings ... ok
+test mcp_server::tests::lint_code_detects_python_eval ... ok
+test mcp_server::tests::lint_code_detects_javascript_inner_html ... ok
+test scanner::tests::critical_high_and_unknown_severities_block ... ok
+test scanner::tests::detail_without_database_severity_parses_to_no_severity ... ok
+test scanner::tests::detail_reads_database_severity ... ok
+test wasm_sandbox::tests::options_from_job_uses_defaults ... ok
+test mcp_server::tests::resolve_path_or_content_writes_temp_file ... ok
+test sandbox::tests::overlay_copy_stops_at_the_size_budget ... ok
+test wasm_sandbox::tests::run_returns_exit_code ... ok
+test wasm_sandbox::tests::infinite_loop_consumes_fuel ... ok
+test sandbox::tests::writes_inside_the_sandbox_do_not_reach_the_source_directory ... ok
+test sandbox::tests::job_running_past_the_limit_is_killed ... ok
+test leak_check::tests::stable_command_passes ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running unittests src/main.rs (target/debug/deps/agent_immune-92f65bb189f7e2e9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests agent_immune
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+exit=0
