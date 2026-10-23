@@ -85,7 +85,11 @@ async fn sandbox_job_is_executed_and_its_result_published() {
 
     let mut results = client.subscribe(subjects::EXECUTE_RESULT).await.unwrap();
 
-    let options = agent_immune::sandbox::SandboxOptions::default();
+    let options = agent_immune::sandbox::SandboxOptions {
+        network_blackhole: false,
+        seccomp: false,
+        ..Default::default()
+    };
     let consumer = tokio::spawn(async move {
         agent_immune::jetstream_consumer::run_sandbox_consumer(&url, &options).await
     });
