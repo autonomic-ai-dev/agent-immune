@@ -108,8 +108,8 @@ Global `--progress` (or `AGENT_PROGRESS=1`) enables structured ProgressTree CLI 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/health` | Daemon health |
-| `POST` | `/scan` | Vulnerability scan |
-| `POST` | `/sandbox/run` | Sandboxed command execution |
+
+Scanning and sandboxed execution are CLI commands (`agent-immune scan`, `agent-immune sandbox run`). Over MCP, `immune_scan_manifest` is the only exposed tool. The HTTP server does not serve scan or sandbox routes.
 
 ---
 
