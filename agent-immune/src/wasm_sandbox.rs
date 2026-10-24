@@ -212,6 +212,7 @@ pub fn into_execute_result(
             success: r.exit_code == 0,
             fuel_consumed: Some(r.fuel_consumed),
             memory_peak_bytes: Some(r.memory_peak_bytes),
+            degraded: false,
         },
         Err(e) => {
             let (exit_code, stderr) = match &e {
@@ -233,6 +234,7 @@ pub fn into_execute_result(
                 success: false,
                 fuel_consumed: None,
                 memory_peak_bytes: None,
+                degraded: false,
             }
         }
     }

@@ -4,7 +4,7 @@ version = "1.0.0-beta.3.9"
 edition = "2021"
 
 [dependencies]
-agent-body-core = { git = "https://github.com/autonomic-ai-dev/agent-body", tag = "v1.0.0-beta.3", features = ["nats", "wasm"] }
+agent-body-core = { git = "https://github.com/autonomic-ai-dev/agent-body", tag = "v1.0.0-beta.3.11", features = ["nats", "wasm"] }
 anyhow = "1"
 async-nats = "0.39"
 axum = "0.7"

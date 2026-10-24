@@ -41,6 +41,7 @@ Summary: agent-immune checks dependency manifests against the OSV.dev vulnerabil
 - `agent-immune`
 
 ## How to get to it (user POV)
+- Sandbox runs refuse a command the shared policy rejects (`agent_body_core::guard::inspect`) before any process spawns. The rules are in the `command-policy` feature map in agent-body.
 
 - CLI: `agent-immune scan`, `sandbox run`, `verify-memory`, `serve`, `serve-mcp`, `status`
 - HTTP: `GET /health` on `http://localhost:3106`. This is the only HTTP route in `agent-immune/src/serve.rs`.
