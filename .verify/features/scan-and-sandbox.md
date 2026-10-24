@@ -19,7 +19,7 @@ Summary: agent-immune checks dependency manifests against the OSV.dev vulnerabil
 - `sandbox-firecracker`: Runs the command in a Firecracker micro-VM.
   - Intent: Strongest isolation for the highest-risk commands.
   - Behaviour: Selected by `backend = "firecracker"` (`sandbox.rs` line 85). Requires `AUTONOMIC_FC_KERNEL` and `AUTONOMIC_FC_ROOTFS`, and a `firecracker` binary on the path.
-  - Outcome: Runs in the VM when configured. When it is not configured, or the VM fails, the request returns an error. The subprocess fallback runs only when `AUTONOMIC_IMMUNE_ALLOW_SUBPROCESS_FALLBACK=1` is set, and its result stderr begins with `degraded:` (`sandbox.rs`, `run_with_timeout`). Two tests cover the failure and the opt-in.
+  - Outcome: Runs in the VM when configured. When it is not configured, the backend logs a warning and runs the command as a plain subprocess (`sandbox.rs` lines 101-105). Not verified in this pass.
 - `sandbox-wasm`: Runs a WebAssembly module with fuel and memory limits.
   - Intent: Give a sandbox that is deterministic and bounded by instruction count.
   - Behaviour: Selected by `backend = "wasm"` (`sandbox.rs` line 61). `wasm_sandbox.rs` runs the module with `run_path` (line 78) or `run_bytes` (line 90). Errors include `OutOfFuel`, `OutOfMemory`, and `WallClockTimeout` (line 22).
@@ -63,7 +63,7 @@ Summary: agent-immune checks dependency manifests against the OSV.dev vulnerabil
 
 ## Gotchas
 
-- Fixed (plan item 3.2): a request for `firecracker` without `AUTONOMIC_FC_KERNEL` and `AUTONOMIC_FC_ROOTFS` now fails by default. The subprocess fallback needs `AUTONOMIC_IMMUNE_ALLOW_SUBPROCESS_FALLBACK=1`. Known gap: `degraded: true` is carried in the stderr text, not as a field, because `ExecuteResult` is a shared body-core type. A `degraded` field needs a body-core release, which is a separate decision.
+- Silent downgrade: a request for `firecracker` without `AUTONOMIC_FC_KERNEL` and `AUTONOMIC_FC_ROOTFS` runs as a plain subprocess, with only a warning in the log. A caller that asked for VM isolation gets less isolation without an error. This is security-relevant. Change it to fail the request, and add a test for the failure.
 - Seccomp and Firecracker are not exercised on this macOS host. Their behaviour is unproven here.
 - Fixed (2026-10-24): `connect_js(url)` in `jetstream_consumer.rs` connects to the URL it is given, through `connect_nats_at`. That helper applies the `AUTONOMIC_NATS_*` auth and TLS settings, as body-core's `connect_nats` does. The test points `AUTONOMIC_NATS_URL` at a dead port, so only the URL argument can reach the broker. The helper is duplicated in agent-muscle until body-core ships it under a new tag.
 - `manifest-scan` queries a live external service. A run without network access cannot prove a result, and a clean result must not be read as "no vulnerabilities".
