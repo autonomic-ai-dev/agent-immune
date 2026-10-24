@@ -36,6 +36,10 @@ Summary: agent-immune checks dependency manifests against the OSV.dev vulnerabil
   - Behaviour: `agent-immune status`, `GET /health` on port 3106.
   - Outcome: A status table and a health JSON.
 
+## Code
+
+- `agent-immune`
+
 ## How to get to it (user POV)
 
 - CLI: `agent-immune scan`, `sandbox run`, `verify-memory`, `serve`, `serve-mcp`, `status`
