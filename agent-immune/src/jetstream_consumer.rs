@@ -1,16 +1,43 @@
 use anyhow::{Context, Result};
 use async_nats::jetstream::{self, consumer::AckPolicy, stream::StorageType};
 use futures::StreamExt;
+use std::path::PathBuf;
 use std::time::Duration;
 use tracing::{error, info, warn};
 
 use agent_body_core::nats::subjects;
 use agent_body_core::{ExecuteResult, SandboxExecute, STREAM_NAME, STREAM_SUBJECT_WILDCARD};
 
-async fn connect_js(_url: &str) -> Result<jetstream::Context> {
-    let client = agent_body_core::connect_nats()
-        .await
-        .context("connect to NATS")?;
+async fn connect_nats_at(url: &str) -> Result<async_nats::Client, async_nats::ConnectError> {
+    use agent_body_core::nats_auth::{
+        nats_insecure_mode, ENV_NATS_CA, ENV_NATS_CERT, ENV_NATS_KEY, ENV_NATS_PASSWORD,
+        ENV_NATS_TLS, ENV_NATS_USER,
+    };
+
+    let mut opts = async_nats::ConnectOptions::new();
+    if !nats_insecure_mode() {
+        let user = std::env::var(ENV_NATS_USER).unwrap_or_default();
+        let pass = std::env::var(ENV_NATS_PASSWORD).unwrap_or_default();
+        if !user.is_empty() {
+            opts = opts.user_and_password(user, pass);
+        }
+    }
+    if std::env::var(ENV_NATS_TLS).ok().as_deref() == Some("1") {
+        opts = opts.require_tls(true);
+        if let Ok(ca_path) = std::env::var(ENV_NATS_CA) {
+            opts = opts.add_root_certificates(PathBuf::from(ca_path));
+        }
+        if let (Ok(cert_path), Ok(key_path)) =
+            (std::env::var(ENV_NATS_CERT), std::env::var(ENV_NATS_KEY))
+        {
+            opts = opts.add_client_certificate(PathBuf::from(cert_path), PathBuf::from(key_path));
+        }
+    }
+    opts.connect(url).await
+}
+
+async fn connect_js(url: &str) -> Result<jetstream::Context> {
+    let client = connect_nats_at(url).await.context("connect to NATS")?;
     let js = jetstream::new(client);
     js.get_or_create_stream(jetstream::stream::Config {
         name: STREAM_NAME.to_string(),

@@ -69,7 +69,7 @@ async fn sandbox_job_is_executed_and_its_result_published() {
     wait_until_ready(&url).await;
 
     unsafe {
-        std::env::set_var("AUTONOMIC_NATS_URL", &url);
+        std::env::set_var("AUTONOMIC_NATS_URL", "nats://127.0.0.1:1");
     }
 
     let client = async_nats::connect(&url).await.unwrap();
