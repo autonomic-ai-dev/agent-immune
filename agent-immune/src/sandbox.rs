@@ -9,6 +9,8 @@ const OVERLAY_MAX_BYTES: u64 = 256 * 1024 * 1024;
 
 use agent_body_core::{ExecuteResult, SandboxExecute};
 
+const ENV_ALLOW_SUBPROCESS_FALLBACK: &str = "AUTONOMIC_IMMUNE_ALLOW_SUBPROCESS_FALLBACK";
+
 use crate::config::SandboxConfig as ImmuneSandboxConfig;
 
 #[derive(Debug, Clone)]
@@ -82,9 +84,11 @@ async fn run_with_timeout(
 
     let command = wrap_with_resource_limits(&job.command, memory_mb, cpu_cores);
 
+    let mut degraded_reason = None;
     if backend == "firecracker" {
-        if let Some(fc_cfg) = crate::firecracker::FirecrackerConfig::from_env() {
-            match crate::firecracker::run_command(&command, cwd, &fc_cfg).await {
+        let fallback_allowed = std::env::var(ENV_ALLOW_SUBPROCESS_FALLBACK).as_deref() == Ok("1");
+        let unavailable = match crate::firecracker::FirecrackerConfig::from_env() {
+            Some(fc_cfg) => match crate::firecracker::run_command(&command, cwd, &fc_cfg).await {
                 Ok(out) => {
                     return ExecuteResult {
                         msg_id: format!("{}-result", job.msg_id),
@@ -97,13 +101,21 @@ async fn run_with_timeout(
                         memory_peak_bytes: None,
                     };
                 }
-                Err(e) => {
-                    warn!("firecracker backend failed ({e}); falling back to subprocess");
-                }
+                Err(e) => format!("firecracker backend failed: {e}"),
+            },
+            None => {
+                "firecracker backend not configured: set AUTONOMIC_FC_KERNEL and AUTONOMIC_FC_ROOTFS"
+                    .to_string()
             }
-        } else {
-            warn!("firecracker backend requested but AUTONOMIC_FC_KERNEL/ROOTFS not configured; using subprocess");
+        };
+        if !fallback_allowed {
+            return failed_result(
+                job,
+                format!("{unavailable}; set {ENV_ALLOW_SUBPROCESS_FALLBACK}=1 to allow the subprocess fallback"),
+            );
         }
+        warn!("{unavailable}; running as a degraded subprocess");
+        degraded_reason = Some(unavailable);
     }
 
     let overlay = match overlay_workspace(cwd) {
@@ -123,16 +135,22 @@ async fn run_with_timeout(
     };
 
     match output {
-        Ok(out) => ExecuteResult {
-            msg_id: format!("{}-result", job.msg_id),
-            job_id: job.job_id.clone(),
-            exit_code: out.status.code().unwrap_or(-1),
-            stdout: String::from_utf8_lossy(&out.stdout).into(),
-            stderr: String::from_utf8_lossy(&out.stderr).into(),
-            success: out.status.success(),
-            fuel_consumed: None,
-            memory_peak_bytes: None,
-        },
+        Ok(out) => {
+            let mut stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+            if let Some(reason) = &degraded_reason {
+                stderr = format!("degraded: {reason}; ran as subprocess\n{stderr}");
+            }
+            ExecuteResult {
+                msg_id: format!("{}-result", job.msg_id),
+                job_id: job.job_id.clone(),
+                exit_code: out.status.code().unwrap_or(-1),
+                stdout: String::from_utf8_lossy(&out.stdout).into(),
+                stderr,
+                success: out.status.success(),
+                fuel_consumed: None,
+                memory_peak_bytes: None,
+            }
+        }
         Err(e) => failed_result(job, e.to_string()),
     }
 }
@@ -357,6 +375,49 @@ mod tests {
         assert!(result.success, "{}", result.stderr);
         assert!(result.stdout.contains("seed"));
         assert!(!src.path().join("leaked.txt").exists());
+    }
+
+    static FIRECRACKER_ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn firecracker_job(dir: &Path, command: &str) -> SandboxExecute {
+        let mut job = job_in(dir, command);
+        job.backend = Some("firecracker".into());
+        job
+    }
+
+    #[tokio::test]
+    async fn firecracker_request_fails_closed_without_the_opt_in() {
+        let _guard = FIRECRACKER_ENV.lock().unwrap();
+        unsafe {
+            std::env::remove_var(ENV_ALLOW_SUBPROCESS_FALLBACK);
+        }
+        let src = tempfile::tempdir().unwrap();
+        let result = run_isolated(&firecracker_job(src.path(), "echo hi"), &plain_options()).await;
+        assert!(!result.success);
+        assert!(
+            result.stderr.contains(ENV_ALLOW_SUBPROCESS_FALLBACK),
+            "{}",
+            result.stderr
+        );
+        assert!(!result.stdout.contains("hi"));
+    }
+
+    #[tokio::test]
+    async fn firecracker_request_with_the_opt_in_runs_and_is_marked_degraded() {
+        let _guard = FIRECRACKER_ENV.lock().unwrap();
+        unsafe {
+            std::env::remove_var("AUTONOMIC_FC_KERNEL");
+            std::env::remove_var("AUTONOMIC_FC_ROOTFS");
+            std::env::set_var(ENV_ALLOW_SUBPROCESS_FALLBACK, "1");
+        }
+        let src = tempfile::tempdir().unwrap();
+        let result = run_isolated(&firecracker_job(src.path(), "echo hi"), &plain_options()).await;
+        unsafe {
+            std::env::remove_var(ENV_ALLOW_SUBPROCESS_FALLBACK);
+        }
+        assert!(result.success, "{}", result.stderr);
+        assert!(result.stdout.contains("hi"));
+        assert!(result.stderr.starts_with("degraded:"), "{}", result.stderr);
     }
 
     #[tokio::test]
