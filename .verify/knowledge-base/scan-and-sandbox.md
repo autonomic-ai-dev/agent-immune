@@ -31,13 +31,14 @@ agent-immune checks dependency manifests against the OSV.dev vulnerability datab
 
 ## How it is verified
 
-- `cargo test` for the whole crate (18 tests in the recorded baseline)
+- `cargo test` for the whole crate (18 tests in the recorded baseline, plus the Firecracker tests)
+- `cargo test firecracker_request`: fails closed without the opt-in, and runs as degraded with it
 - `sh .verify/checks/require_tests.sh --test jetstream_consumer_tests`: a job runs and its result is published
 - `bash .verify/checks/route_drift.sh`: the README route table matches source
 
 ## Known limits
 
-- **Silent downgrade.** A request for `firecracker` without the kernel and rootfs variables runs as a plain subprocess, with only a warning in the log. A caller that asked for VM isolation gets less isolation with no error. This is security-relevant. The fix is to fail the request, with a test.
+- **Fail-closed by default (plan item 3.2).** A request for `firecracker` that cannot run returns an error. Without the kernel and rootfs variables it fails, unless `AUTONOMIC_IMMUNE_ALLOW_SUBPROCESS_FALLBACK=1` is set. With the opt-in, the subprocess result's stderr begins with `degraded:`. A `degraded` field is not yet in the shared result type.
 - Seccomp and Firecracker have not been exercised on this macOS host.
 - `scan` queries a live service. A result without network access proves nothing, and a clean result must not be read as "no vulnerabilities".
 - The subprocess backend is not a hardened container. On macOS its network block is its only isolation.
