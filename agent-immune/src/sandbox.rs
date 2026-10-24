@@ -82,6 +82,16 @@ async fn run_with_timeout(
         );
     }
 
+    if let Some(issue) = agent_body_core::guard::inspect(&job.command).first() {
+        return failed_result(
+            job,
+            format!(
+                "command blocked by policy (line {}): {}",
+                issue.line, issue.message
+            ),
+        );
+    }
+
     let command = wrap_with_resource_limits(&job.command, memory_mb, cpu_cores);
 
     let mut degraded_reason = None;
@@ -99,6 +109,7 @@ async fn run_with_timeout(
                         success: out.status.success(),
                         fuel_consumed: None,
                         memory_peak_bytes: None,
+degraded: false,
                     };
                 }
                 Err(e) => format!("firecracker backend failed: {e}"),
@@ -149,6 +160,7 @@ async fn run_with_timeout(
                 success: out.status.success(),
                 fuel_consumed: None,
                 memory_peak_bytes: None,
+                degraded: degraded_reason.is_some(),
             }
         }
         Err(e) => failed_result(job, e.to_string()),
@@ -165,6 +177,7 @@ fn failed_result(job: &SandboxExecute, stderr: String) -> ExecuteResult {
         success: false,
         fuel_consumed: None,
         memory_peak_bytes: None,
+        degraded: false,
     }
 }
 
@@ -211,6 +224,7 @@ pub async fn run_script(path: &Path, options: &SandboxOptions) -> ExecuteResult 
             success: false,
             fuel_consumed: None,
             memory_peak_bytes: None,
+            degraded: false,
         };
     };
 
@@ -361,6 +375,24 @@ mod tests {
             backend: "subprocess".into(),
             seccomp: false,
         }
+    }
+
+    #[tokio::test]
+    async fn destructive_command_is_rejected_before_any_spawn() {
+        let src = tempfile::tempdir().unwrap();
+        let result = run_isolated(
+            &job_in(src.path(), "rm -rf /tmp/immune-policy-sentinel; echo ran"),
+            &plain_options(),
+        )
+        .await;
+        assert!(!result.success);
+        assert_eq!(result.exit_code, -1);
+        assert!(
+            result.stderr.contains("blocked by policy"),
+            "{}",
+            result.stderr
+        );
+        assert!(!result.stdout.contains("ran"), "{}", result.stdout);
     }
 
     #[tokio::test]
