@@ -46,7 +46,7 @@ Summary: agent-immune checks dependency manifests against the OSV.dev vulnerabil
 
 - **Unit Tests:** `cargo test` (whole crate, 18 tests in the baseline)
 - **Functional API Tests (Hurl):** not yet written
-- **Allowlisted Verification:** `.verify/verify.toml` runs `sh .verify/checks/require_tests.sh --test jetstream_consumer_tests`. The scan, HTTP, and sandbox suites are not yet in the allowlist.
+- **Allowlisted Verification:** `.verify/verify.toml` runs `sh .verify/checks/require_tests.sh --test jetstream_consumer_tests` and `bash .verify/checks/route_drift.sh`, which checks the README route table against source. The scan, HTTP, and sandbox suites are not yet in the allowlist.
 - **Preconditions:** Rust toolchain. `scan` needs network access to OSV.dev, so a scan test must use a recorded response or be marked not available.
 
 ### Verification Steps
@@ -61,7 +61,7 @@ Summary: agent-immune checks dependency manifests against the OSV.dev vulnerabil
 
 - Silent downgrade: a request for `firecracker` without `AUTONOMIC_FC_KERNEL` and `AUTONOMIC_FC_ROOTFS` runs as a plain subprocess, with only a warning in the log. A caller that asked for VM isolation gets less isolation without an error. This is security-relevant. Change it to fail the request, and add a test for the failure.
 - Seccomp and Firecracker are not exercised on this macOS host. Their behaviour is unproven here.
-- Defect: `connect_js(_url)` in `jetstream_consumer.rs` ignores its `url` argument, the same defect as in agent-muscle. The test sets `AUTONOMIC_NATS_URL`, which is how the consumer really connects.
+- Fixed (2026-10-24): `connect_js(url)` in `jetstream_consumer.rs` connects to the URL it is given, through `connect_nats_at`. That helper applies the `AUTONOMIC_NATS_*` auth and TLS settings, as body-core's `connect_nats` does. The test points `AUTONOMIC_NATS_URL` at a dead port, so only the URL argument can reach the broker. The helper is duplicated in agent-muscle until body-core ships it under a new tag.
 - `manifest-scan` queries a live external service. A run without network access cannot prove a result, and a clean result must not be read as "no vulnerabilities".
 - `sandbox-process` is a subprocess, not a hardened container. Its network block is the only isolation it provides on macOS.
 - Documentation drift: `agent-immune/README.md` lists HTTP routes `POST /scan` and `POST /sandbox/run`, and MCP tools `immune_sandbox_run` and `immune_lint_ast`. None of them exist in the code. The code has only `GET /health` over HTTP and `immune_scan_manifest` over MCP. Fix the README or add the routes, then update this contract.
