@@ -82,14 +82,8 @@ async fn run_with_timeout(
         );
     }
 
-    if let Some(issue) = agent_body_core::guard::inspect(&job.command).first() {
-        return failed_result(
-            job,
-            format!(
-                "command blocked by policy (line {}): {}",
-                issue.line, issue.message
-            ),
-        );
+    if let Some(reason) = policy_rejection(&job.command) {
+        return failed_result(job, reason);
     }
 
     let command = wrap_with_resource_limits(&job.command, memory_mb, cpu_cores);
@@ -165,6 +159,17 @@ degraded: false,
         }
         Err(e) => failed_result(job, e.to_string()),
     }
+}
+
+fn policy_rejection(command: &str) -> Option<String> {
+    agent_body_core::guard::inspect(command)
+        .first()
+        .map(|issue| {
+            format!(
+                "command blocked by policy (line {}): {}",
+                issue.line, issue.message
+            )
+        })
 }
 
 fn failed_result(job: &SandboxExecute, stderr: String) -> ExecuteResult {
@@ -407,6 +412,13 @@ mod tests {
         assert!(result.success, "{}", result.stderr);
         assert!(result.stdout.contains("seed"));
         assert!(!src.path().join("leaked.txt").exists());
+    }
+
+    #[test]
+    fn policy_agrees_with_the_shared_command_policy_corpus() {
+        for (command, rejected) in agent_body_core::guard_corpus::COMMAND_POLICY_CORPUS {
+            assert_eq!(policy_rejection(command).is_some(), *rejected, "{command}");
+        }
     }
 
     static FIRECRACKER_ENV: std::sync::Mutex<()> = std::sync::Mutex::new(());
